@@ -1,11 +1,12 @@
 package com.Ntm;
+import java.time.LocalDateTime;
 import java.util.Date;
 
 public class Note {
     private String title;
     private String content;
-    private Date createdAt;
-    private Date updatedAt;
+    private final LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
     private String createdBy;
     private boolean active = true;
 
@@ -13,13 +14,13 @@ public class Note {
         this.title = title;
         this.content = content;
         this.createdBy = createdBy;
-        this.createdAt = new Date();
-        this.updatedAt = new Date();
+        this.createdAt = LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now();
     }
 
     public void editContent(String newContent) {
         this.content = newContent;
-        this.updatedAt = new Date();
+        this.updatedAt = LocalDateTime.now();
         System.out.println("Contenido actualizado.");
     }
 
