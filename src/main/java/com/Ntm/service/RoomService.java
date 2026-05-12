@@ -1,12 +1,8 @@
 package com.Ntm.service;
 
-import com.Ntm.dto.CreateRoomRequest;
-import com.Ntm.dto.CreateRoomResponse;
-import com.Ntm.dto.JoinRoomRequest;
-import com.Ntm.dto.JoinRoomResponse;
+import com.Ntm.dto.*;
 import com.Ntm.entity.Room;
-import com.Ntm.exception.InvalidRoomException;
-import com.Ntm.exception.RoomNotFoundException;
+import com.Ntm.exception.*;
 import com.Ntm.repository.RoomRepository;
 import org.springframework.stereotype.Service;
 
@@ -70,5 +66,26 @@ public class RoomService {
                 room.getName(),
                 room.getParticipants()
         );
+    }
+
+    private void validateDeleteRequest(DeleteRoomRequest request) {
+        if (request.getAdminName() == null ||
+                request.getAdminName().trim().isEmpty()) {
+            throw new InvalidRoomException(
+                    "El nombre del administrador es obligatorio");
+        }
+    }
+    public DeleteRoomResponse deleteRoom(String roomId, DeleteRoomRequest request) {
+        validateDeleteRequest(request);
+        Room room = roomRepository.findById(roomId)
+                .orElseThrow(() ->
+                        new RoomNotFoundException("La sala no existe"));
+        if (!room.getAdminName().equals(request.getAdminName())) {
+            throw new UnauthorizedRoomActionException(
+                    "Solo el administrador puede eliminar la sala");
+        }
+        roomRepository.delete(room);
+        return new DeleteRoomResponse(
+                "Sala eliminada correctamente");
     }
 }

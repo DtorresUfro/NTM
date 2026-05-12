@@ -1,9 +1,6 @@
 package com.Ntm.controller;
 
-import com.Ntm.dto.CreateRoomRequest;
-import com.Ntm.dto.CreateRoomResponse;
-import com.Ntm.dto.JoinRoomRequest;
-import com.Ntm.dto.JoinRoomResponse;
+import com.Ntm.dto.*;
 import com.Ntm.service.RoomService;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
@@ -26,5 +23,10 @@ public class RoomController {
     @PostMapping("/join")
     public JoinRoomResponse joinRoom(@RequestBody JoinRoomRequest request) {
         return roomService.joinRoom(request);
+    }
+
+    @DeleteMapping("/{roomId}")
+    public DeleteRoomResponse deleteRoom(@PathVariable String roomId, @RequestBody DeleteRoomRequest request) {
+        return roomService.deleteRoom(roomId, request);
     }
 }
