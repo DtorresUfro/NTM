@@ -1,6 +1,5 @@
 package com.Ntm;
 import java.time.LocalDateTime;
-import java.util.Date;
 
 public class Note {
     private String title;
