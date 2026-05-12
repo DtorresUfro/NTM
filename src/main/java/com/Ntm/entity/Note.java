@@ -1,4 +1,4 @@
-package com.Ntm;
+package com.Ntm.entity;
 import java.time.LocalDateTime;
 
 public class Note {

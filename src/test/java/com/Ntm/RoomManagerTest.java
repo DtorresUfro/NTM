@@ -1,6 +1,8 @@
 package com.Ntm;
 
 import static org.junit.jupiter.api.Assertions.*;
+
+import com.Ntm.entity.Room;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
 class RoomManagerTest {

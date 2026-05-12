@@ -1,4 +1,4 @@
-package com.Ntm;
+package com.Ntm.entity;
 import java.util.*;
 
 public class Task {

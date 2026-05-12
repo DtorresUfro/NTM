@@ -1,5 +1,7 @@
 package com.Ntm;
 
+import com.Ntm.entity.Room;
+
 import java.util.ArrayList;
 import java.util.List;
 
