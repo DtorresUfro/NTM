@@ -1,4 +1,7 @@
 package com.Ntm.exception;
 
-public class RoomNotFoundException {
+public class RoomNotFoundException extends RuntimeException {
+    public RoomNotFoundException(String message) {
+        super(message);
+    }
 }
