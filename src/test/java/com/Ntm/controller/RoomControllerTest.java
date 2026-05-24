@@ -16,6 +16,10 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+/**
+ * Habilita el entorno de pruebas enfocado exclusivamente en la capa MVC web.
+ * Escanea y configura el controlador especificado sin levantar todo el contexto de Spring.
+ */
 @WebMvcTest(RoomController.class)
 class RoomControllerTest {
 
@@ -28,18 +32,24 @@ class RoomControllerTest {
     @MockBean
     private RoomService roomService;
 
+    /**
+     * Valida que una petición HTTP POST válida devuelva un estado 201 (Created)
+     * junto con la estructura JSON correcta en el cuerpo de la respuesta.
+     */
     @Test
     void shouldReturn201WhenRoomIsCreated() throws Exception {
-
+        // Arrange: Configuración del escenario de simulación (Mocking)
         CreateRoomResponse response = new CreateRoomResponse(
                 "ABCD1234",
                 "MK-12345",
                 "Sala Test"
         );
 
+        // Define el comportamiento del servicio simulado al recibir cualquier Request DTO
         when(roomService.createRoom(any(CreateRoomRequest.class)))
                 .thenReturn(response);
 
+        // Definición de la carga útil (Payload) en formato JSON estructurado
         String json = """
                 {
                     "roomName": "Sala Test",
@@ -47,11 +57,12 @@ class RoomControllerTest {
                 }
                 """;
 
+        // Act & Assert: Ejecución de la solicitud HTTP simulada y aserciones de salida
         mockMvc.perform(post("/api/rooms")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(json))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.roomId").value("ABCD1234"))
+                .andExpect(status().isCreated()) // Valida código HTTP 201
+                .andExpect(jsonPath("$.roomId").value("ABCD1234"))  // Valida nodo del JSON
                 .andExpect(jsonPath("$.masterKey").value("MK-12345"))
                 .andExpect(jsonPath("$.roomName").value("Sala Test"));
     }
