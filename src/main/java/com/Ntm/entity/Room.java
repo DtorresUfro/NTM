@@ -30,6 +30,10 @@ public class Room {
         this.participants.add(adminName);
     }
 
+    public Room() {
+
+    }
+
     public String generateJoinId() {
         return UUID.randomUUID().toString().substring(0, 8).toUpperCase();
     }
