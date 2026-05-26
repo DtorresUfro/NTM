@@ -1,4 +1,4 @@
-# NTM - Backend (Sistema de Gestión de Salas)
+# NTM - Backend (Sistema de Gestión de notas y salas grupales)
 
 Este repositorio contiene el código fuente del backend para la aplicación **NTM**, enfocado en la organizacion y persistencia para el control y la gestión de nota dentro de salas. 
 
