@@ -4,6 +4,7 @@ import com.Ntm.dto.*;
 import com.Ntm.service.RoomService;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.http.ResponseEntity;
 
 @RestController
 @RequestMapping("/api/rooms")
