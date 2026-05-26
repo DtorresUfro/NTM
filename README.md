@@ -27,3 +27,11 @@ src/main/java/com/Ntm/
 ├── entity/      # Modelo de Dominio: Entidades que representan las tablas de la BD (ej: Room).
 ├── dto/         # Data Transfer Objects: Objetos inmutables de entrada y salida (Request/Response).
 └── exception/   # Manejo de Errores: Excepciones personalizadas para la lógica de negocio.
+```
+### Flujo de Datos Estándar:
+Cliente HTTP -> Controller -> Service (Lógica) -> Repository -> Base de Datos
+
+## Infraestructura de Pruebas (Testing)
+El sistema cuenta con un conjunto de pruebas automatizadas dividida en dos enfoques principales para asegurar la estabilidad del código:
+
+### Pruebas Unitarias de Servicio (**RoomServiceTest**)
