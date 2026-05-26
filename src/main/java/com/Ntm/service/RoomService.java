@@ -88,4 +88,24 @@ public class RoomService {
         return new DeleteRoomResponse(
                 "Sala eliminada correctamente");
     }
+    public AdminAccessResponse grantAdminAccess(AdminAccessRequest request) {
+        // 1. Validar la precondición: Buscar que la sala exista
+        Room room = roomRepository.findById(request.getRoomId())
+                .orElseThrow(() -> new IllegalArgumentException("La sala especificada no existe"));
+
+        // 2. Flujo alternativo (Excepción): Verificar si la Master Key es correcta
+        if (!room.getMasterKey().equals(request.getMasterKey())) {
+            throw new InvalidMasterKeyException("Acceso denegado: La Master Key es incorrecta");
+        }
+
+        // 3. Flujo principal: Conceder acceso (añadir a la sala si no está)
+        if (!room.getParticipants().contains(request.getUserName())) {
+            room.getParticipants().add(request.getUserName());
+        }
+
+        // 4. Postcondición: Guardar cambios y asignar rol de administrador en la respuesta
+        roomRepository.save(room);
+
+        return new AdminAccessResponse(room.getId(), "ADMIN");
+    }
 }

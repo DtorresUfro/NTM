@@ -29,4 +29,9 @@ public class RoomController {
     public DeleteRoomResponse deleteRoom(@PathVariable String roomId, @RequestBody DeleteRoomRequest request) {
         return roomService.deleteRoom(roomId, request);
     }
+    @PostMapping("/validate-masterkey")
+    public ResponseEntity<AdminAccessResponse> accessWithMasterKey(@RequestBody AdminAccessRequest request) {
+        AdminAccessResponse response = roomService.grantAdminAccess(request);
+        return ResponseEntity.ok(response);
+    }
 }
