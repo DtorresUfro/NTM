@@ -126,4 +126,54 @@ class RoomServiceTest {
         verify(roomRepository).save(mockRoom);
         // Verifica que se guardaron los cambios
     }
+
+    @Test
+    void shouldRemoveParticipantSuccessfully() {
+        // 1. Preparar datos
+        String roomId = "ROOM-123";
+        String adminName = "Valen";
+        String userToRemove = "Lucas";
+
+        RemoveParticipantRequest request = new RemoveParticipantRequest();
+        setField(request, "roomId", roomId);
+        setField(request, "adminName", adminName);
+        setField(request, "usernameToRemove", userToRemove);
+
+        // 2. Crear sala con el admin y el usuario a eliminar
+        Room mockRoom = new Room("Sala de Estudio", adminName);
+        setField(mockRoom, "id", roomId);
+        mockRoom.getParticipants().add("Lucas"); // Aseguramos que Lucas está dentro
+
+        when(roomRepository.findById(roomId)).thenReturn(Optional.of(mockRoom));
+
+        // 3. Ejecutar
+        roomService.removeParticipant(request);
+
+        // 4. Verificar
+        assertFalse(mockRoom.getParticipants().contains(userToRemove), "El usuario debería haber sido eliminado");
+        verify(roomRepository).save(mockRoom);
+    }
+
+    /**
+     * CASO DE USO 7: Eliminar usuario de la sala
+     */
+
+    @Test
+    void shouldThrowExceptionWhenNotAdminTriesToRemove() {
+        String roomId = "ROOM-123";
+        String intruder = "Lucas"; // Lucas no es el admin
+
+        RemoveParticipantRequest request = new RemoveParticipantRequest();
+        setField(request, "roomId", roomId);
+        setField(request, "adminName", intruder); // Él se intenta hacer pasar por admin
+        setField(request, "usernameToRemove", "OtroUsuario");
+
+        Room mockRoom = new Room("Sala de Estudio", "Valen"); // El admin es Valen
+        setField(mockRoom, "id", roomId);
+
+        when(roomRepository.findById(roomId)).thenReturn(Optional.of(mockRoom));
+
+        // 5. Verificar que lance la excepción de seguridad
+        assertThrows(RuntimeException.class, () -> roomService.removeParticipant(request));
+    }
 }
