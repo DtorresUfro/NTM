@@ -25,10 +25,9 @@ public class RoomControllerTest {
 
     @Test
     public void shouldReturn200AndAdminRoleWhenMasterKeyIsValid() throws Exception {
-        // Tu JSON de prueba
         String requestJson = "{\"roomId\":\"SALA-123\",\"masterKey\":\"secret123\",\"userName\":\"Valen\"}";
 
-        mockMvc.perform(post("/validate-masterkey")
+        mockMvc.perform(post("/api/rooms/validate-masterkey")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestJson))
                 .andExpect(status().isOk());
