@@ -35,4 +35,14 @@ public class RoomController {
         AdminAccessResponse response = roomService.grantAdminAccess(request);
         return ResponseEntity.ok(response);
     }
+
+    @PostMapping("/remove-participant")
+    public ResponseEntity<String> removeParticipant(@RequestBody RemoveParticipantRequest request) {
+        try {
+            roomService.removeParticipant(request);
+            return ResponseEntity.ok("Usuario eliminado de la sala exitosamente");
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
 }

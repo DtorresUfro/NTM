@@ -108,4 +108,23 @@ public class RoomService {
 
         return new AdminAccessResponse(room.getId(), "ADMIN");
     }
+
+    public void removeParticipant(RemoveParticipantRequest request) {
+        Room room = roomRepository.findById(request.getRoomId())
+                .orElseThrow(() -> new RuntimeException("Sala no encontrada"));
+
+        // Validación: ¿Es el usuario el admin?
+        if (!room.getAdminName().equals(request.getAdminName())) {
+            throw new RuntimeException("Acceso denegado: Solo el administrador puede eliminar usuarios");
+        }
+
+        // Validación: ¿El usuario existe en la sala?
+        if (!room.getParticipants().contains(request.getUsernameToRemove())) {
+            throw new RuntimeException("Usuario inexistente en la sala");
+        }
+
+        // Eliminación
+        room.getParticipants().remove(request.getUsernameToRemove());
+        roomRepository.save(room);
+    }
 }
