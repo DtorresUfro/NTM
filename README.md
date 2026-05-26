@@ -1,6 +1,6 @@
 # NTM - Backend (Sistema de Gestión de Salas)
 
-Este repositorio contiene el código fuente del backend para la aplicación **NTM**, enfocado en la arquitectura, reglas de negocio y persistencia para el control y la gestión de salas de comunicación/reunión. 
+Este repositorio contiene el código fuente del backend para la aplicación **NTM**, enfocado en la organizacion y persistencia para el control y la gestión de nota dentro de salas. 
 
 El sistema está construido bajo el ecosistema de **Java** y **Spring Boot**, siguiendo un diseño basado en capas para asegurar la mantenibilidad y el desacoplamiento de componentes.
 
