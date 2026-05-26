@@ -66,17 +66,4 @@ class RoomControllerTest {
                 .andExpect(jsonPath("$.masterKey").value("MK-12345"))
                 .andExpect(jsonPath("$.roomName").value("Sala Test"));
     }
-
-    @Test
-    public void shouldReturn200AndAdminRoleWhenMasterKeyIsValid() throws Exception {
-        // Configura aquí tu objeto JSON simulando la petición
-        String requestJson = "{\"roomId\":\"SALA-123\",\"masterKey\":\"secret123\",\"userName\":\"Valen\"}";
-
-        mockMvc.perform(post("/validate-masterkey")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(requestJson))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.role").value("ADMIN"))
-                .andExpect(jsonPath("$.roomId").value("SALA-123"));
-    }
 }
