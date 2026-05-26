@@ -28,18 +28,25 @@ src/main/java/com/Ntm/
 ├── dto/         # Data Transfer Objects: Objetos inmutables de entrada y salida (Request/Response).
 └── exception/   # Manejo de Errores: Excepciones personalizadas para la lógica de negocio.
 ```
+---
+
 ### Flujo de Datos Estándar:
 Cliente HTTP -> Controller -> Service (Lógica) -> Repository -> Base de Datos
 
+---
+
 ## Infraestructura de Pruebas (Testing)
+
 El sistema cuenta con un conjunto de pruebas automatizadas dividida en dos enfoques principales para asegurar la estabilidad del código:
 
 ### Pruebas Unitarias de Servicio **RoomServiceTest**)
+
 * **Ubicación:** src/test/java/com/Ntm/service/ 
 * **Objetivo:** Validar de forma aislada la lógica y las restrcciones del sistema.
 * **Tecnología:** Utilización Mockito para simular la capa de datos (**RoomRepository**) evitando llamadas reales a la base de datos, y usa la API de reflexión de Java para poblar los atributos de los DTOs inmutabkes de prueba.
 
 ### Pruebas de Integración de Capa Web(**RoomControllerTest**)
+
 * **Ubicación:** src/test/java/com/Ntm/controller/
 * **Objetivo:** Vericar la integridad de los ENdpoints expuestos, los mapeos de rutas URL, los códigos de estado HTTP y la correcta estructura de los objetos JSON devueltos al clienter.
 * **Tecnología:** Utilización @WebMvbTest y MockMvc para simular peticiones de red de forma ligera sin necesidad de levantar un servidor Tomcat real.
