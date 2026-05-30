@@ -45,4 +45,64 @@ public class RoomController {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
+
+    @PostMapping("/tasks")
+    public ResponseEntity<String> createTask(@RequestBody TaskRequest request) {
+        try {
+            roomService.createTask(request);
+            return ResponseEntity.ok("Tarea creada exitosamente");
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @PutMapping("/tasks")
+    public ResponseEntity<String> updateTask(@RequestBody TaskRequest request) {
+        try {
+            roomService.updateTask(request);
+            return ResponseEntity.ok("Tarea actualizada exitosamente");
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @PatchMapping("/tasks/complete")
+    public ResponseEntity<String> completeTask(@RequestBody TaskRequest request) {
+        try {
+            roomService.completeTask(request);
+            return ResponseEntity.ok("Tarea completada exitosamente");
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @PostMapping("/notes")
+    public ResponseEntity<String> createNote(@RequestBody NoteRequest request) {
+        try {
+            roomService.createNote(request);
+            return ResponseEntity.ok("Nota agregada exitosamente");
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @PutMapping("/notes")
+    public ResponseEntity<String> updateNote(@RequestBody NoteRequest request) {
+        try {
+            roomService.updateNote(request);
+            return ResponseEntity.ok("Nota editada exitosamente");
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @DeleteMapping("/notes")
+    public ResponseEntity<String> deleteNote(@RequestBody NoteRequest request) {
+        try {
+            roomService.deleteNote(request);
+            return ResponseEntity.ok("Nota eliminada exitosamente");
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
 }

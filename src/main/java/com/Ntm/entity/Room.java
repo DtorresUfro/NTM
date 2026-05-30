@@ -1,7 +1,5 @@
 package com.Ntm.entity;
-import jakarta.persistence.ElementCollection;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
+import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -19,7 +17,12 @@ public class Room {
     private String adminName;
     @ElementCollection
     private List<String> participants = new ArrayList<>();
+    @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
+    @JoinColumn(name = "calendar_id")
+    private Calendar calendar;
 
+    public Room() {
+    }
     public Room(String name, String adminName) {
         this.name = name;
         this.adminName = adminName;
@@ -48,5 +51,12 @@ public class Room {
     public void addParticipant(String name) {
         this.participants.add(name);
         this.lastActivity = LocalDateTime.now();
+    }
+    public Calendar getCalendar() {
+        return this.calendar;
+    }
+
+    public void setCalendar(Calendar calendar) {
+        this.calendar = calendar;
     }
 }
