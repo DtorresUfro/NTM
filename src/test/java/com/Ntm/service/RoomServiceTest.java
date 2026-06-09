@@ -47,6 +47,19 @@ class RoomServiceTest {
         verify(roomRepository).save(any(Room.class));
     }
 
+    // Excepción por nombre de sala vacío
+    @Test
+    void shouldThrowExceptionWhenRoomNameIsEmpty() {
+        CreateRoomRequest request = new CreateRoomRequest();
+        setField(request, "roomName", "");
+        setField(request, "adminName", "Valen");
+
+        assertThrows(RuntimeException.class,
+                () -> roomService.createRoom(request));
+
+        verify(roomRepository, never()).save(any());
+    }
+
     /**
      * CASO DE USO 2: Unirse a Sala
      */
@@ -69,6 +82,30 @@ class RoomServiceTest {
         assertTrue(response.getParticipants().contains("Lucas"));
     }
 
+
+     // Usuario duplicado en la sala
+    @Test
+    void shouldThrowExceptionWhenUsernameAlreadyExistsInRoom() {
+
+        JoinRoomRequest request = new JoinRoomRequest();
+        setField(request, "roomId", "ROOM-123");
+        setField(request, "username", "Lucas");
+
+        Room room = new Room("Sala Test", "Valen");
+        setField(room, "id", "ROOM-123");
+
+        room.getParticipants().add("Lucas");
+
+        when(roomRepository.findById("ROOM-123"))
+                .thenReturn(Optional.of(room));
+
+        assertThrows(RuntimeException.class,
+                () -> roomService.joinRoom(request));
+
+        verify(roomRepository, never()).save(any());
+    }
+
+
     /**
      * CASO DE USO 3: Eliminar Sala
      */
@@ -89,7 +126,26 @@ class RoomServiceTest {
         verify(roomRepository).delete(mockRoom);
     }
 
-    // Método de Reflection para poder setear campos privados sin setters
+     //Usuario sin permisos intenta eliminar sala
+    @Test
+    void shouldThrowExceptionWhenNotAdminTriesToDeleteRoom() {
+
+        DeleteRoomRequest request = new DeleteRoomRequest();
+        setField(request, "adminName", "Lucas");
+
+        Room room = new Room("Sala Test", "Valen");
+        setField(room, "id", "ROOM-123");
+
+        when(roomRepository.findById("ROOM-123"))
+                .thenReturn(Optional.of(room));
+
+        assertThrows(RuntimeException.class,
+                () -> roomService.deleteRoom("ROOM-123", request));
+
+        verify(roomRepository, never()).delete(any());
+    }
+
+    // Metodo de Reflection para poder setear campos privados sin setters
     private void setField(Object target, String fieldName, Object value) {
         try {
             var field = target.getClass().getDeclaredField(fieldName);
@@ -127,36 +183,185 @@ class RoomServiceTest {
         // Verifica que se guardaron los cambios
     }
 
+
+    //Master Key incorrecta
     @Test
-    void shouldRemoveParticipantSuccessfully() {
-        // 1. Preparar datos
-        String roomId = "ROOM-123";
-        String adminName = "Valen";
-        String userToRemove = "Lucas";
+    void shouldThrowExceptionWhenMasterKeyIsInvalid() {
 
-        RemoveParticipantRequest request = new RemoveParticipantRequest();
-        setField(request, "roomId", roomId);
-        setField(request, "adminName", adminName);
-        setField(request, "usernameToRemove", userToRemove);
+        AdminAccessRequest request = new AdminAccessRequest();
 
-        // 2. Crear sala con el admin y el usuario a eliminar
-        Room mockRoom = new Room("Sala de Estudio", adminName);
-        setField(mockRoom, "id", roomId);
-        mockRoom.getParticipants().add("Lucas"); // Aseguramos que Lucas está dentro
+        setField(request, "roomId", "ROOM-123");
+        setField(request, "masterKey", "claveIncorrecta");
+        setField(request, "userName", "Lucas");
 
-        when(roomRepository.findById(roomId)).thenReturn(Optional.of(mockRoom));
+        Room room = new Room("Sala Test", "Valen");
+
+        setField(room, "id", "ROOM-123");
+        setField(room, "masterKey", "claveCorrecta");
+
+        when(roomRepository.findById("ROOM-123"))
+                .thenReturn(Optional.of(room));
+
+        assertThrows(RuntimeException.class,
+                () -> roomService.grantAdminAccess(request));
+
+        verify(roomRepository, never()).save(any());
+    }
+    /**
+     * CASO DE USO 5: Gestión de notas
+     */
+
+    //Crear la nota correctamente
+
+    void shouldCreateNoteOrTaskSuccessfully() {
+
+        // 1. Preparar solicitud
+        NoteRequest request = new NoteRequest();
+
+        setField(request, "roomId", "ROOM-123");
+        setField(request, "username", "Lucas");
+        setField(request, "noteTitle", "Entrega Proyecto");
+        setField(request, "content", "Terminar pruebas unitarias");
+
+        // 2. Crear sala simulada
+        Room room = new Room("Sala Test", "Valen");
+        setField(room, "id", "ROOM-123");
+
+        room.getParticipants().add("Lucas");
+
+        when(roomRepository.findById("ROOM-123"))
+                .thenReturn(Optional.of(room));
 
         // 3. Ejecutar
-        roomService.removeParticipant(request);
+        roomService.createNote(request);
 
         // 4. Verificar
-        assertFalse(mockRoom.getParticipants().contains(userToRemove), "El usuario debería haber sido eliminado");
-        verify(roomRepository).save(mockRoom);
+        assertNotNull(room.getCalendar());
+        assertEquals(1, room.getCalendar().getNotes().size());
+
+        var note = room.getCalendar().getNotes().get(0);
+
+        assertEquals("Entrega Proyecto", note.getTitle());
+        assertEquals("Terminar pruebas unitarias", note.getContent());
+        assertEquals("Lucas", note.getCreatedBy());
+
+        verify(roomRepository).save(room);
+    }
+
+    // Excepcion si la sala no existe
+    @Test
+    void shouldThrowExceptionWhenRoomDoesNotExist() {
+
+        NoteRequest request = new NoteRequest();
+
+        setField(request, "roomId", "ROOM-INEXISTENTE");
+
+        when(roomRepository.findById("ROOM-INEXISTENTE"))
+                .thenReturn(Optional.empty());
+
+        assertThrows(RuntimeException.class,
+                () -> roomService.createNote(request));
+    }
+
+    //Eliminar la nota correctamente
+    @Test
+    void shouldDeleteNoteSuccessfully() {
+
+        NoteRequest request = new NoteRequest();
+
+        setField(request, "roomId", "ROOM-123");
+        setField(request, "username", "Lucas");
+        setField(request, "noteTitle", "Nota 1");
+
+        Room room = new Room("Sala Test", "Valen");
+        setField(room, "id", "ROOM-123");
+
+        com.Ntm.entity.Calendar calendar = new com.Ntm.entity.Calendar();
+
+        calendar.addNote(
+                new com.Ntm.entity.Note(
+                        "Nota 1",
+                        "Contenido",
+                        "Lucas"));
+
+        room.setCalendar(calendar);
+
+        when(roomRepository.findById("ROOM-123"))
+                .thenReturn(Optional.of(room));
+
+        roomService.deleteNote(request);
+
+        verify(roomRepository).save(room);
+    }
+
+    // Lanzar una excepcion cuando el usuario edita la nota de otro usuario
+
+    @Test
+    void shouldThrowExceptionWhenUserEditsAnotherUsersNote() {
+
+        NoteRequest request = new NoteRequest();
+
+        setField(request, "roomId", "ROOM-123");
+        setField(request, "username", "Lucas");
+        setField(request, "noteTitle", "Nota Barb");
+        setField(request, "content", "Nuevo contenido");
+
+        Room room = new Room("Sala Test", "Valen");
+        setField(room, "id", "ROOM-123");
+
+        com.Ntm.entity.Calendar calendar = new com.Ntm.entity.Calendar();
+
+        calendar.addNote(
+                new com.Ntm.entity.Note(
+                        "Nota Barb",
+                        "Contenido original",
+                        "Barb"));
+
+        room.setCalendar(calendar);
+
+        when(roomRepository.findById("ROOM-123"))
+                .thenReturn(Optional.of(room));
+
+        assertThrows(RuntimeException.class,
+                () -> roomService.updateNote(request));
+
+        verify(roomRepository, never()).save(any());
     }
 
     /**
      * CASO DE USO 7: Eliminar usuario de la sala
      */
+
+    //Eliminar usuario de la sala correctamente
+    @Test
+    void shouldRemoveParticipantSuccessfully() {
+
+        String roomId = "ROOM-123";
+        String adminName = "Valen";
+        String userToRemove = "Lucas";
+
+        RemoveParticipantRequest request = new RemoveParticipantRequest();
+
+        setField(request, "roomId", roomId);
+        setField(request, "adminName", adminName);
+        setField(request, "usernameToRemove", userToRemove);
+
+        Room room = new Room("Sala de Estudio", adminName);
+        setField(room, "id", roomId);
+
+        room.getParticipants().add("Lucas");
+
+        when(roomRepository.findById(roomId))
+                .thenReturn(Optional.of(room));
+
+        // Ejecutar acción
+        roomService.removeParticipant(request);
+
+        // Verificar eliminación
+        assertFalse(room.getParticipants().contains(userToRemove));
+
+        verify(roomRepository).save(room);
+    }
 
     @Test
     void shouldThrowExceptionWhenNotAdminTriesToRemove() {
