@@ -8,18 +8,25 @@ import org.springframework.web.bind.annotation.PathVariable;
 @Controller
 public class ViewController {
 
-
-     // Página principal.
-     //Crear sala y unirse a sala.
-
     @GetMapping("/")
     public String home() {
         return "index";
     }
 
+    @GetMapping("/crear-sala")
+    public String crearSala() {
+        return "crear-sala";
+    }
 
-     //Vista principal de una sala.
-     //Participantes, tareas, notas y notificaciones.
+    @GetMapping("/unirse-a-sala")
+    public String unirseASala() {
+        return "unirse-a-sala";
+    }
+
+    @GetMapping("/sala-creada")
+    public String salaCreada() {
+        return "sala-creada";
+    }
 
     @GetMapping("/room/{roomId}")
     public String room(@PathVariable String roomId, Model model) {
@@ -27,17 +34,11 @@ public class ViewController {
         return "room";
     }
 
-    // Acceso mediante Master Key.
-
     @GetMapping("/admin-access")
     public String adminAccess() {
         return "admin-access";
     }
 
-    /*
-    Panel administrativo.
-    funciones exclusivas del administrador.
-     */
     @GetMapping("/room/{roomId}/admin")
     public String adminPanel(@PathVariable String roomId, Model model) {
         model.addAttribute("roomId", roomId);

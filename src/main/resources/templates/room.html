@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sala de Trabajo</title>
+    <style>
+        body { background-color: #eaf3fa; margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #2b455e; }
+        .header { background-color: #2b455e; color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;}
+        .container { max-width: 900px; margin: 20px auto; padding: 0 20px; }
+
+        /* Navegación por pestañas */
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+        .tab-btn { background-color: #fff; border: 1px solid #7cb7f9; padding: 10px 15px; border-radius: 6px; cursor: pointer; color: #559ef6; font-weight: bold; flex-grow: 1; text-align: center; }
+        .tab-btn.active { background-color: #559ef6; color: white; }
+        .tab-btn.admin { background-color: #f39c12; color: white; border-color: #e67e22; display: none; } /* Oculto por defecto */
+
+        /* Contenido de pestañas */
+        .tab-content { display: none; background: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .tab-content.active { display: block; }
+
+        /* Formularios y Componentes */
+        .form-group { margin-bottom: 15px; }
+        input, textarea { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-family: inherit;}
+        .btn { background-color: #559ef6; color: white; padding: 10px 15px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        .btn-danger { background-color: #e74c3c; }
+        .btn-warning { background-color: #e67e22; }
+
+        /* Calendario y Buzón Visual */
+        .calendario-box { height: 300px; background: #fdfdfd; border: 2px dashed #7cb7f9; border-radius: 8px; display: flex; justify-content: center; align-items: center; color: #999; }
+        .buzon-msg { background: #fff3cd; color: #856404; padding: 15px; border-left: 5px solid #ffeeba; border-radius: 4px; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+<div class="header">
+    <div><strong>Sala ID:</strong> <span th:text="${roomId}"></span></div>
+    <div>
+        <span id="currentUserDisplay"></span> |
+        <a href="/" style="color: #ff9999; text-decoration: none; font-weight: bold;">Salir</a>
+    </div>
+</div>
+
+<div class="container">
+    <div class="tabs">
+        <div class="tab-btn active" onclick="openTab('notas')"> Notas </div>
+        <div class="tab-btn" onclick="openTab('tareas')"> Tareas</div>
+        <div class="tab-btn" onclick="openTab('calendario')"> Calendario</div>
+        <div class="tab-btn" onclick="openTab('buzon')"> Buzón (CU6)</div>
+        <div class="tab-btn admin" id="adminTabBtn" onclick="openTab('admin')"> Panel Admin</div>
+    </div>
+
+    <div id="notas" class="tab-content active">
+        <h3>Crear / Editar Nota</h3>
+        <form id="noteForm">
+            <div class="form-group">
+                <input type="text" id="noteTitle" placeholder="Título de la nota" required>
+            </div>
+            <div class="form-group">
+                <textarea id="noteContent" rows="4" placeholder="Contenido de la nota..." required></textarea>
+            </div>
+            <button type="submit" class="btn">Guardar Nota</button>
+        </form>
+    </div>
+
+    <div id="tareas" class="tab-content">
+        <h3>Crear Tarea</h3>
+        <form id="taskForm">
+            <div class="form-group">
+                <input type="text" id="taskTitle" placeholder="Título de la tarea" required>
+            </div>
+            <div class="form-group">
+                <textarea id="taskContent" rows="3" placeholder="Descripción de la tarea..."></textarea>
+            </div>
+            <button type="submit" class="btn">Asignar Tarea</button>
+        </form>
+    </div>
+
+    <div id="calendario" class="tab-content">
+        <h3>Calendario de la Sala</h3>
+        <p>Visualización de fechas límite y organización del equipo.</p>
+        <div class="calendario-box">
+            [ Interfaz del Calendario Próximamente ]
+        </div>
+    </div>
+
+    <div id="buzon" class="tab-content">
+        <h3>Buzón de Notificaciones</h3>
+        <p>Aquí se muestran las alertas de tareas atrasadas o mensajes del sistema.</p>
+        <div class="buzon-msg">
+            <strong>Alerta del sistema:</strong> Aún no tienes tareas atrasadas.
+        </div>
+    </div>
+
+    <div id="admin" class="tab-content">
+        <h3 style="color: #e67e22;">Panel de Administrador</h3>
+
+        <div style="border: 1px solid #ddd; padding: 15px; border-radius: 6px; margin-bottom: 20px;">
+            <h4>Expulsar Usuario (CU7)</h4>
+            <input type="text" id="userToRemove" placeholder="Nombre del usuario a expulsar" style="width: 70%; display:inline-block;">
+            <button onclick="expulsarUsuario()" class="btn btn-warning">Expulsar</button>
+        </div>
+
+        <div style="border: 1px solid #e74c3c; padding: 15px; border-radius: 6px; background: #fff0f0;">
+            <h4 style="color: #e74c3c; margin-top: 0;">Zona de Peligro (CU3)</h4>
+            <p>Eliminar la sala borrará todas las notas y tareas permanentemente.</p>
+            <button onclick="disolverSala()" class="btn btn-danger">Disolver Sala</button>
+        </div>
+    </div>
+</div>
+
+<script th:inline="javascript">
+    const roomId = /*[[${roomId}]]*/ '';
+    const currentUser = sessionStorage.getItem('currentUser') || 'Invitado';
+    const isAdmin = sessionStorage.getItem('isAdmin') === 'true';
+
+    document.getElementById('currentUserDisplay').innerText = '👤 ' + currentUser;
+
+    // Mostrar pestaña Admin si el usuario es el creador/administrador
+    if (isAdmin) {
+        document.getElementById('adminTabBtn').style.display = 'block';
+    }
+
+    // Función para cambiar pestañas
+    function openTab(tabId) {
+        document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(tb => tb.classList.remove('active'));
+
+        document.getElementById(tabId).classList.add('active');
+        event.currentTarget.classList.add('active');
+    }
+
+    // Peticiones genéricas a la API (Notas y Tareas)
+    async function enviarPeticion(url, data) {
+        try {
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            if(res.ok) alert("¡Guardado correctamente!");
+            else alert("Ocurrió un error al guardar.");
+        } catch (e) { alert("Error de conexión."); }
+    }
+
+    // Eventos de Formularios
+    document.getElementById('noteForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        enviarPeticion('/api/rooms/notes', {
+            roomId: roomId, username: currentUser,
+            noteTitle: document.getElementById('noteTitle').value,
+            content: document.getElementById('noteContent').value
+        });
+    });
+
+    document.getElementById('taskForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        enviarPeticion('/api/rooms/tasks', {
+            roomId: roomId, username: currentUser,
+            taskTitle: document.getElementById('taskTitle').value,
+            content: document.getElementById('taskContent').value
+        });
+    });
+
+    // Funciones del Administrador
+    async function expulsarUsuario() {
+        const userToRemove = document.getElementById('userToRemove').value;
+        const res = await fetch('/api/rooms/remove-participant', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ roomId: roomId, adminName: currentUser, usernameToRemove: userToRemove })
+        });
+        if(res.ok) alert("Usuario expulsado.");
+        else alert(await res.text());
+    }
+
+    async function disolverSala() {
+        if(confirm("¿Estás seguro de eliminar esta sala? Esta acción no se puede deshacer.")) {
+            const res = await fetch(`/api/rooms/${roomId}`, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ adminName: currentUser })
+            });
+            if(res.ok) window.location.href = "/";
+            else alert("No tienes permisos para disolver la sala.");
+        }
+    }
+</script>
+</body>
+</html>
