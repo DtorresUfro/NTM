@@ -70,7 +70,7 @@
                 sessionStorage.setItem('lastCreatedRoomId', data.roomId);
                 sessionStorage.setItem('lastCreatedMasterKey', data.masterKey);
                 sessionStorage.setItem('currentUser', adminName);
-                sessionStorage.setItem('isAdmin', 'true'); // Guardamos que este usuario es el admin
+                sessionStorage.setItem('isAdmin', 'true'); 
                 window.location.href = '/sala-creada';
             } else {
                 const err = await response.text();
