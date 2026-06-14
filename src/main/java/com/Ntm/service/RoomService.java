@@ -56,7 +56,7 @@ public class RoomService {
 
     public JoinRoomResponse joinRoom(JoinRoomRequest request) {
         validateJoinRequest(request);
-        Room room = roomRepository.findById(request.getRoomId())
+        Room room = roomRepository.findByRoomId(request.getRoomId())
                 .orElseThrow(() ->
                         new RoomNotFoundException("La sala indicada no existe"));
         if (room.getParticipants().contains(request.getUsername())) {
@@ -82,7 +82,7 @@ public class RoomService {
 
     public DeleteRoomResponse deleteRoom(String roomId, DeleteRoomRequest request) {
         validateDeleteRequest(request);
-        Room room = roomRepository.findById(roomId)
+        Room room = roomRepository.findByRoomId(roomId)
                 .orElseThrow(() ->
                         new RoomNotFoundException("La sala no existe"));
         if (!room.getAdminName().equals(request.getAdminName())) {
@@ -94,24 +94,16 @@ public class RoomService {
                 "Sala eliminada correctamente");
     }
 
+    // CORREGIDO: Devuelve el nombre real del Administrador guardado en la BD
     public AdminAccessResponse grantAdminAccess(AdminAccessRequest request) {
-        Room room = roomRepository.findById(request.getRoomId())
-                .orElseThrow(() -> new IllegalArgumentException("La sala especificada no existe"));
+        Room room = roomRepository.findByMasterKey(request.getMasterKey())
+                .orElseThrow(() -> new IllegalArgumentException("La Master Key ingresada no pertenece a ninguna sala existente"));
 
-        if (!room.getMasterKey().equals(request.getMasterKey())) {
-            throw new InvalidMasterKeyException("Acceso denegado: La Master Key es incorrecta");
-        }
-
-        if (!room.getParticipants().contains(request.getUserName())) {
-            room.getParticipants().add(request.getUserName());
-        }
-
-        roomRepository.save(room);
-        return new AdminAccessResponse(room.getId(), "ADMIN");
+        return new AdminAccessResponse(room.getId(), room.getAdminName());
     }
 
     public void removeParticipant(RemoveParticipantRequest request) {
-        Room room = roomRepository.findById(request.getRoomId())
+        Room room = roomRepository.findByRoomId(request.getRoomId())
                 .orElseThrow(() -> new RuntimeException("Sala no encontrada"));
 
         if (!room.getAdminName().equals(request.getAdminName())) {
@@ -131,7 +123,7 @@ public class RoomService {
     // ==========================================
 
     public void createNote(NoteRequest request) {
-        Room room = roomRepository.findById(request.getRoomId())
+        Room room = roomRepository.findByRoomId(request.getRoomId())
                 .orElseThrow(() -> new RuntimeException("Sala no encontrada"));
 
         if (!room.getParticipants().contains(request.getUsername()) && !room.getAdminName().equals(request.getUsername())) {
@@ -149,7 +141,7 @@ public class RoomService {
     }
 
     public void updateNote(NoteRequest request) {
-        Room room = roomRepository.findById(request.getRoomId())
+        Room room = roomRepository.findByRoomId(request.getRoomId())
                 .orElseThrow(() -> new RuntimeException("Sala no encontrada"));
 
         Note note = room.getCalendar().getNotes().stream()
@@ -166,7 +158,7 @@ public class RoomService {
     }
 
     public void deleteNote(NoteRequest request) {
-        Room room = roomRepository.findById(request.getRoomId())
+        Room room = roomRepository.findByRoomId(request.getRoomId())
                 .orElseThrow(() -> new RuntimeException("Sala no encontrada"));
 
         Note note = room.getCalendar().getNotes().stream()
@@ -187,7 +179,7 @@ public class RoomService {
     // ==========================================
 
     public void createTask(TaskRequest request) {
-        Room room = roomRepository.findById(request.getRoomId())
+        Room room = roomRepository.findByRoomId(request.getRoomId())
                 .orElseThrow(() -> new RuntimeException("Sala no encontrada"));
 
         if (!room.getParticipants().contains(request.getUsername()) && !room.getAdminName().equals(request.getUsername())) {
@@ -212,7 +204,7 @@ public class RoomService {
     }
 
     public void updateTask(TaskRequest request) {
-        Room room = roomRepository.findById(request.getRoomId())
+        Room room = roomRepository.findByRoomId(request.getRoomId())
                 .orElseThrow(() -> new RuntimeException("Sala no encontrada"));
 
         Task task = room.getCalendar().getTasks().stream()
@@ -225,7 +217,7 @@ public class RoomService {
     }
 
     public void completeTask(TaskRequest request) {
-        Room room = roomRepository.findById(request.getRoomId())
+        Room room = roomRepository.findByRoomId(request.getRoomId())
                 .orElseThrow(() -> new RuntimeException("Sala no encontrada"));
 
         Task task = room.getCalendar().getTasks().stream()
@@ -235,5 +227,30 @@ public class RoomService {
 
         task.complete();
         roomRepository.save(room);
+    }
+
+    // ==========================================
+    // SECCIÓN DE CONSULTA DE MIEMBROS
+    // ==========================================
+    public java.util.List<String> getRoomParticipants(String roomId) {
+        Room room = roomRepository.findByRoomId(roomId)
+                .orElseThrow(() -> new RoomNotFoundException("La sala no existe"));
+
+        java.util.List<String> allMembers = new java.util.ArrayList<>();
+
+        // 1. Agregamos al administrador original de la base de datos
+        if (room.getAdminName() != null && !room.getAdminName().trim().isEmpty()) {
+            allMembers.add(room.getAdminName() + " (Admin)");
+        }
+
+        // 2. Agregamos al resto de participantes si existen y no están repetidos
+        if (room.getParticipants() != null) {
+            for (String participant : room.getParticipants()) {
+                if (!participant.equalsIgnoreCase(room.getAdminName())) {
+                    allMembers.add(participant);
+                }
+            }
+        }
+        return allMembers;
     }
 }

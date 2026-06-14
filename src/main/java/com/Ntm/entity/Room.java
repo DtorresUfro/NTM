@@ -16,6 +16,11 @@ public class Room {
     private LocalDateTime lastActivity;
     private String adminName;
     @ElementCollection
+    @CollectionTable(
+            name = "room_participants",
+            joinColumns = @JoinColumn(name = "room_master_key")
+    )
+    @Column(name = "participant_name")
     private List<String> participants = new ArrayList<>();
     @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
     @JoinColumn(name = "calendar_id")

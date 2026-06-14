@@ -2,19 +2,19 @@ package com.Ntm.dto;
 
 public class AdminAccessResponse {
     private String roomId;
-    private String role;
+    private String adminName;
 
     public AdminAccessResponse() {
     }
 
-    public AdminAccessResponse(String roomId, String role) {
+    public AdminAccessResponse(String roomId, String adminName) {
         this.roomId = roomId;
-        this.role = role;
+        this.adminName = adminName;
     }
 
     public String getRoomId() { return roomId; }
     public void setRoomId(String roomId) { this.roomId = roomId; }
 
-    public String getRole() { return role; }
-    public void setRole(String role) { this.role = role; }
+    public String getAdminName() { return adminName; }
+    public void setAdminName(String adminName) { this.adminName = adminName; }
 }

@@ -69,8 +69,14 @@
 
       if (response.ok) {
         const data = await response.json();
-        sessionStorage.setItem('isAdmin', 'true'); // Guardamos que es admin en la sesión
-        window.location.href = `/room/${data.roomId}/admin`;
+
+        // 1. Se reinicia la sesión dándole los privilegios
+        sessionStorage.setItem('isAdmin', 'true');
+
+        sessionStorage.setItem('currentUser', data.adminName ? data.adminName : 'Administrador');
+
+        window.location.href = `/room/${data.roomId}`;
+
       } else {
         showModal("Master Key incorrecta o inexistente. Por favor, verifica los datos.");
       }
