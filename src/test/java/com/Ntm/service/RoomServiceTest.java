@@ -1,11 +1,15 @@
 package com.Ntm.service;
 
 import com.Ntm.dto.*;
+import com.Ntm.entity.Calendar;
+import com.Ntm.entity.Note;
 import com.Ntm.entity.Room;
+import com.Ntm.entity.Task;
 import com.Ntm.repository.RoomRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.Date;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -376,5 +380,237 @@ class RoomServiceTest {
 
         // 5. Verificar que lance la excepción de seguridad
         assertThrows(RuntimeException.class, () -> roomService.removeParticipant(request));
+    }
+
+    //Actualizar nota creada por el mismo usuario
+    @Test
+    void shouldUpdateNoteSuccessfully() {
+        NoteRequest request = new NoteRequest();
+
+        request.setRoomId("ROOM-123");
+        request.setUsername("Dyssio");
+        request.setNoteTitle("Nota 1");
+        request.setContent("Contenido actualizado");
+
+        Room room = new Room("Sala", "Valen");
+        setField(room, "id", "ROOM-123");
+
+        Calendar calendar = new Calendar();
+
+        Note note = new Note("Nota 1", "Contenido antiguo", "Dyssio");
+
+        calendar.addNote(note);
+        room.setCalendar(calendar);
+
+        when(roomRepository.findByRoomId("ROOM-123")).thenReturn(Optional.of(room));
+
+        roomService.updateNote(request);
+
+        assertEquals("Contenido actualizado", note.getContent());
+
+        verify(roomRepository).save(room);
+    }
+
+    //Verifica que se impida eliminar una nota cuando el usuario no es su creador.
+    @Test
+    void shouldThrowExceptionWhenDeletingOtherUsersNote() {
+        NoteRequest request = new NoteRequest();
+
+        request.setRoomId("ROOM-123");
+        request.setUsername("Dyssio");
+        request.setNoteTitle("Nota 1");
+
+        Room room = new Room("Sala", "Valen");
+        setField(room, "id", "ROOM-123");
+
+        Calendar calendar = new Calendar();
+
+        calendar.addNote(new Note("Nota 1", "Contenido", "Ivan"));
+
+        room.setCalendar(calendar);
+
+        when(roomRepository.findByRoomId("ROOM-123")).thenReturn(Optional.of(room));
+
+        assertThrows(RuntimeException.class, () -> roomService.deleteNote(request));
+    }
+
+    //Crear tarea
+    @Test
+    void shouldCreateTaskSuccessfully() {
+        TaskRequest request = new TaskRequest();
+
+        request.setRoomId("ROOM-123");
+        request.setUsername("Dyssio");
+        request.setTaskTitle("Tarea 1");
+        request.setDescription("Descripción");
+        request.setDueDate(new Date());
+
+        Room room = new Room("Sala", "Valen");
+        setField(room, "id", "ROOM-123");
+
+        room.getParticipants().add("Dyssio");
+
+        when(roomRepository.findByRoomId("ROOM-123")).thenReturn(Optional.of(room));
+
+        roomService.createTask(request);
+
+        assertNotNull(room.getCalendar());
+        assertEquals(1, room.getCalendar().getTasks().size());
+
+        verify(roomRepository).save(room);
+    }
+
+    //Actualizar tarea
+    @Test
+    void shouldUpdateTaskSuccessfully() {
+        TaskRequest request = new TaskRequest();
+
+        request.setRoomId("ROOM-123");
+        request.setTaskTitle("Tarea 1");
+        request.setDescription("Nueva");
+        request.setDueDate(new Date());
+
+        Room room = new Room("Sala", "Valen");
+        setField(room, "id", "ROOM-123");
+
+        Calendar calendar = new Calendar();
+
+        calendar.addTask(new Task("Tarea 1", "Vieja",
+                new Date(), "Dyssio", new Date(), false));
+
+        room.setCalendar(calendar);
+
+        when(roomRepository.findByRoomId("ROOM-123")).thenReturn(Optional.of(room));
+
+        roomService.updateTask(request);
+
+        verify(roomRepository).save(room);
+    }
+
+    //Marcar tarea como completada
+    @Test
+    void shouldCompleteTaskSuccessfully() {
+        Task task = new Task("Tarea 1", "Desc",
+                new Date(), "Lucas", new Date(), false);
+
+        Calendar calendar = new Calendar();
+        calendar.addTask(task);
+
+        Room room = new Room("Sala", "Valen");
+        setField(room, "id", "ROOM-123");
+        room.setCalendar(calendar);
+
+        TaskRequest request = new TaskRequest();
+        request.setRoomId("ROOM-123");
+        request.setTaskTitle("Tarea 1");
+
+        when(roomRepository.findByRoomId("ROOM-123")).thenReturn(Optional.of(room));
+
+        roomService.completeTask(request);
+
+        assertTrue(task.isCompleted());
+
+        verify(roomRepository).save(room);
+    }
+
+    //Obtener participantes de la sala
+    @Test
+    void shouldReturnParticipants() {
+        Room room = new Room("Sala", "Valen");
+        setField(room, "id", "ROOM-123");
+
+        room.addParticipant("Lucas");
+
+        when(roomRepository.findByRoomId("ROOM-123")).thenReturn(Optional.of(room));
+
+        var result = roomService.getRoomParticipants("ROOM-123");
+
+        assertEquals("Valen (Admin)", result.get(0));
+        assertTrue(result.contains("Lucas"));
+    }
+
+    //ESCENARIOS IMPROBABLES, agregados por seguridad..
+
+    //Verifica que se lance una excepción cuando un usuario que no pertenece a la sala intenta crear una nota.
+    @Test
+    void shouldThrowExceptionWhenUserIsNotInRoom() {
+        NoteRequest request = new NoteRequest();
+
+        request.setRoomId("ROOM-123");
+        request.setUsername("Dyssio");
+        request.setNoteTitle("Nota");
+        request.setContent("Contenido");
+
+        Room room = new Room("Sala Test", "Valen");
+        setField(room, "id", "ROOM-123");
+
+        when(roomRepository.findByRoomId("ROOM-123"))
+                .thenReturn(Optional.of(room));
+
+        RuntimeException ex = assertThrows(RuntimeException.class,
+                () -> roomService.createNote(request));
+
+        assertEquals("El usuario no pertenece a la sala", ex.getMessage());
+    }
+
+    //Lanza error en caso de no existir la tarea
+    @Test
+    void shouldThrowExceptionWhenTaskNotFound() {
+        TaskRequest request = new TaskRequest();
+
+        request.setRoomId("ROOM-123");
+        request.setTaskTitle("No Existe");
+
+        Room room = new Room("Sala", "Valen");
+        setField(room, "id", "ROOM-123");
+
+        room.setCalendar(new Calendar());
+
+        when(roomRepository.findByRoomId("ROOM-123")).thenReturn(Optional.of(room));
+
+        assertThrows(RuntimeException.class, () -> roomService.updateTask(request));
+    }
+
+    //Verifica que se lance una excepción cuando un usuario ajeno a la sala intenta crear una tarea.
+    @Test
+    void shouldThrowExceptionWhenCreatingTaskWithoutMembership() {
+        TaskRequest request = new TaskRequest();
+
+        request.setRoomId("ROOM-123");
+        request.setUsername("Intruso");
+
+        Room room = new Room("Sala", "Valen");
+        setField(room, "id", "ROOM-123");
+
+        when(roomRepository.findByRoomId("ROOM-123")).thenReturn(Optional.of(room));
+
+        assertThrows(RuntimeException.class, () -> roomService.createTask(request));
+    }
+
+    //Lanzar error en caso de no existir la nota
+    @Test
+    void shouldThrowExceptionWhenNoteDoesNotExist() {
+        NoteRequest request = new NoteRequest();
+
+        request.setRoomId("ROOM-123");
+        request.setUsername("Dyssio");
+        request.setNoteTitle("Nota Inexistente");
+
+        Room room = new Room("Sala", "Valen");
+        setField(room, "id", "ROOM-123");
+
+        room.setCalendar(new Calendar());
+
+        when(roomRepository.findByRoomId("ROOM-123")).thenReturn(Optional.of(room));
+
+        assertThrows(RuntimeException.class, () -> roomService.updateNote(request));
+    }
+
+    //Verifica que se lance una excepción cuando se consultan participantes a una sala inexistente.
+    @Test
+    void shouldThrowExceptionWhenRoomNotFound() {
+        when(roomRepository.findByRoomId("ROOM-123")).thenReturn(Optional.empty());
+
+        assertThrows(RuntimeException.class, () -> roomService.getRoomParticipants("ROOM-123"));
     }
 }
