@@ -96,7 +96,7 @@ class RoomServiceTest {
 
         room.getParticipants().add("Lucas");
 
-        when(roomRepository.findById("ROOM-123"))
+        when(roomRepository.findByRoomId("ROOM-123"))
                 .thenReturn(Optional.of(room));
 
         assertThrows(RuntimeException.class,
@@ -136,7 +136,7 @@ class RoomServiceTest {
         Room room = new Room("Sala Test", "Valen");
         setField(room, "id", "ROOM-123");
 
-        when(roomRepository.findById("ROOM-123"))
+        when(roomRepository.findByRoomId("ROOM-123"))
                 .thenReturn(Optional.of(room));
 
         assertThrows(RuntimeException.class,
@@ -195,7 +195,7 @@ class RoomServiceTest {
         setField(room, "id", "ROOM-123");
         setField(room, "masterKey", "claveCorrecta");
 
-        when(roomRepository.findById("ROOM-123"))
+        when(roomRepository.findByRoomId("ROOM-123"))
                 .thenReturn(Optional.of(room));
 
         assertThrows(RuntimeException.class,
@@ -208,7 +208,7 @@ class RoomServiceTest {
      */
 
     //Crear la nota correctamente
-
+    @Test
     void shouldCreateNoteOrTaskSuccessfully() {
 
         // 1. Preparar solicitud
@@ -225,7 +225,7 @@ class RoomServiceTest {
 
         room.getParticipants().add("Lucas");
 
-        when(roomRepository.findById("ROOM-123"))
+        when(roomRepository.findByRoomId("ROOM-123"))
                 .thenReturn(Optional.of(room));
 
         // 3. Ejecutar
@@ -315,7 +315,7 @@ class RoomServiceTest {
 
         room.setCalendar(calendar);
 
-        when(roomRepository.findById("ROOM-123"))
+        when(roomRepository.findByRoomId("ROOM-123"))
                 .thenReturn(Optional.of(room));
 
         assertThrows(RuntimeException.class,
@@ -372,7 +372,7 @@ class RoomServiceTest {
         Room mockRoom = new Room("Sala de Estudio", "Valen"); // El admin es Valen
         setField(mockRoom, "id", roomId);
 
-        when(roomRepository.findById(roomId)).thenReturn(Optional.of(mockRoom));
+        when(roomRepository.findByRoomId(roomId)).thenReturn(Optional.of(mockRoom));
 
         // 5. Verificar que lance la excepción de seguridad
         assertThrows(RuntimeException.class, () -> roomService.removeParticipant(request));
