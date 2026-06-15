@@ -183,7 +183,6 @@ class RoomServiceTest {
         verify(roomRepository).findByMasterKey("secret123");
     }
 
-
     //Master Key incorrecta
     @Test
     void shouldThrowExceptionWhenMasterKeyIsInvalid() {
@@ -207,6 +206,18 @@ class RoomServiceTest {
 
         verify(roomRepository, never()).save(any());
     }
+
+    //Master Key innexistente
+    @Test
+    void shouldThrowExceptionWhenMasterKeyDoesNotExist() {
+        AdminAccessRequest request = new AdminAccessRequest();
+        request.setMasterKey("incorrecta");
+
+        when(roomRepository.findByMasterKey("incorrecta")).thenReturn(Optional.empty());
+
+        assertThrows(IllegalArgumentException.class, () -> roomService.grantAdminAccess(request));
+    }
+
     /**
      * CASO DE USO 5: Gestión de notas
      */
@@ -529,7 +540,9 @@ class RoomServiceTest {
         assertTrue(result.contains("Lucas"));
     }
 
-    //ESCENARIOS IMPROBABLES, agregados por seguridad..
+    /*
+    ESCENARIOS IMPROBABLES, agregados por seguridad..
+     */
 
     //Verifica que se lance una excepción cuando un usuario que no pertenece a la sala intenta crear una nota.
     @Test
@@ -605,6 +618,24 @@ class RoomServiceTest {
 
         assertThrows(RuntimeException.class, () -> roomService.updateNote(request));
     }
+    @Test
+    void shouldThrowExceptionWhenDeletingNonExistingNote() {
+        NoteRequest request = new NoteRequest();
+
+        request.setRoomId("ROOM-123");
+        request.setUsername("Dyssio");
+        request.setNoteTitle("No existe");
+
+        Room room = new Room("Sala", "Valen");
+
+        setField(room, "id", "ROOM-123");
+
+        room.setCalendar(new Calendar());
+
+        when(roomRepository.findByRoomId("ROOM-123")).thenReturn(Optional.of(room));
+
+        assertThrows(RuntimeException.class, () -> roomService.deleteNote(request));
+    }
 
     //Verifica que se lance una excepción cuando se consultan participantes a una sala inexistente.
     @Test
@@ -612,5 +643,49 @@ class RoomServiceTest {
         when(roomRepository.findByRoomId("ROOM-123")).thenReturn(Optional.empty());
 
         assertThrows(RuntimeException.class, () -> roomService.getRoomParticipants("ROOM-123"));
+    }
+
+    //Verifica que se lance una excepción cuando el admin expulsa a un usuario inexistente
+    @Test
+    void shouldThrowExceptionWhenParticipantDoesNotExist() {
+
+        RemoveParticipantRequest request =
+                new RemoveParticipantRequest();
+
+        request.setRoomId("ROOM-123");
+        request.setAdminName("Valen");
+        request.setUsernameToRemove("Lucas");
+
+        Room room =
+                new Room("Sala", "Valen");
+
+        setField(room, "id", "ROOM-123");
+
+        when(roomRepository.findByRoomId("ROOM-123"))
+                .thenReturn(Optional.of(room));
+
+        assertThrows(
+                RuntimeException.class,
+                () -> roomService.removeParticipant(request)
+        );
+    }
+
+    //Verifica que se lance una excepción cuando se intenta completar tarea innexistente
+    @Test
+    void shouldThrowExceptionWhenCompletingNonExistingTask() {
+        TaskRequest request = new TaskRequest();
+
+        request.setRoomId("ROOM-123");
+        request.setTaskTitle("No existe");
+
+        Room room = new Room("Sala", "Valen");
+
+        setField(room, "id", "ROOM-123");
+
+        room.setCalendar(new Calendar());
+
+        when(roomRepository.findByRoomId("ROOM-123")).thenReturn(Optional.of(room));
+
+        assertThrows(RuntimeException.class, () -> roomService.completeTask(request));
     }
 }
