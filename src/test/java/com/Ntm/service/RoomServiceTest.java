@@ -72,7 +72,7 @@ class RoomServiceTest {
         Room mockRoom = new Room("Sala de Estudio", "Valen");
         setField(mockRoom, "id", "ABCD1234");
 
-        when(roomRepository.findById("ABCD1234")).thenReturn(Optional.of(mockRoom));
+        when(roomRepository.findByRoomId("ABCD1234")).thenReturn(Optional.of(mockRoom));
 
         JoinRoomResponse response = roomService.joinRoom(request);
 
@@ -117,7 +117,7 @@ class RoomServiceTest {
         Room mockRoom = new Room("Sala Test", "Valen");
         setField(mockRoom, "id", "ABCD1234");
 
-        when(roomRepository.findById("ABCD1234")).thenReturn(Optional.of(mockRoom));
+        when(roomRepository.findByRoomId("ABCD1234")).thenReturn(Optional.of(mockRoom));
 
         DeleteRoomResponse response = roomService.deleteRoom("ABCD1234", request);
 
@@ -162,25 +162,21 @@ class RoomServiceTest {
     @Test
     void shouldGrantAdminAccessSuccessfully() {
         AdminAccessRequest request = new AdminAccessRequest();
-        setField(request, "roomId", "SALA-123");
         setField(request, "masterKey", "secret123");
-        setField(request, "userName", "Valen");
 
-        Room mockRoom = new Room("Sala Secreta", "Admin");
+        Room mockRoom = new Room("Sala Secreta", "Valen");
         setField(mockRoom, "id", "SALA-123");
         setField(mockRoom, "masterKey", "secret123");
 
-        when(roomRepository.findById("SALA-123")).thenReturn(Optional.of(mockRoom));
+        when(roomRepository.findByMasterKey("secret123")).thenReturn(Optional.of(mockRoom));
 
         AdminAccessResponse response = roomService.grantAdminAccess(request);
 
         assertNotNull(response);
         assertEquals("SALA-123", response.getRoomId());
-        assertEquals("ADMIN", response.getRole());
-        assertTrue(mockRoom.getParticipants().contains("Valen"));
-        // Verifica que se añadió al participante
-        verify(roomRepository).save(mockRoom);
-        // Verifica que se guardaron los cambios
+        assertEquals("Valen", response.getAdminName());
+
+        verify(roomRepository).findByMasterKey("secret123");
     }
 
 
@@ -286,7 +282,7 @@ class RoomServiceTest {
 
         room.setCalendar(calendar);
 
-        when(roomRepository.findById("ROOM-123"))
+        when(roomRepository.findByRoomId("ROOM-123"))
                 .thenReturn(Optional.of(room));
 
         roomService.deleteNote(request);
@@ -351,7 +347,7 @@ class RoomServiceTest {
 
         room.getParticipants().add("Lucas");
 
-        when(roomRepository.findById(roomId))
+        when(roomRepository.findByRoomId(roomId))
                 .thenReturn(Optional.of(room));
 
         // Ejecutar acción
