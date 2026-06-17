@@ -17,18 +17,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(RoomController.class)
 class RoomControllerTest {
-
     @Autowired
     private MockMvc mockMvc;
-
     @MockBean
     private RoomService roomService;
-
     @Autowired
     private ObjectMapper objectMapper;
 
     //Test de prueba controller, creacion de sala
-
     @Test
     void shouldCreateRoomSuccessfully() throws Exception {
         CreateRoomRequest request = new CreateRoomRequest();

@@ -12,7 +12,7 @@ import java.util.List;
 public class ViewController {
 
     @Autowired
-    private RoomService roomService; // Inyectamos el servicio para poder leer la BD
+    private RoomService roomService;
 
     @GetMapping("/")
     public String home() {
