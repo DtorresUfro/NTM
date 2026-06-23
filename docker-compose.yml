@@ -1,0 +1,42 @@
+version: "3.9"
+
+services:
+
+  mysql:
+    image: mysql:8.4
+    container_name: ntm-mysql
+
+    environment:
+      MYSQL_DATABASE: ntm_db
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_USER: ntm
+      MYSQL_PASSWORD: ntm
+
+    ports:
+      - "3307:3306"
+
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+    restart: unless-stopped
+
+  app:
+    build: .
+
+    container_name: ntm-backend
+
+    depends_on:
+      - mysql
+
+    environment:
+      DB_URL: jdbc:mysql://mysql:3306/ntm_db
+      DB_USER: ntm
+      DB_PASSWORD: ntm
+
+    ports:
+      - "8080:8080"
+
+    restart: unless-stopped
+
+volumes:
+  mysql_data:
