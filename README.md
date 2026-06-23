@@ -15,6 +15,10 @@ La aplicacion se puede reproducir con las instruccones a continuación, una vez 
 ```bash
   docker compose up
 ```
+* **Test unitarios e integracion;**
+```
+  mvn test
+```
 
 ## Tecnologías y Dependencias Principales
 
