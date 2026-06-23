@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sala Creada</title>
+    <style>
+        body { background-color: #eaf3fa; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .container { text-align: center; width: 100%; max-width: 400px; padding: 20px; box-sizing: border-box; }
+        h2 { color: #2b455e; font-size: 24px; margin-bottom: 30px;}
+        p { color: #555; font-size: 14px; margin-bottom: 5px; }
+        .info-box { background-color: transparent; border: 1px solid #7cb7f9; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 16px; margin: 5px auto 25px auto; color: #2b455e; display: flex; justify-content: space-between; align-items: center; }
+        .copy-icon { cursor: pointer; color: #559ef6; font-size: 18px; }
+        .warning { color: #e74c3c; font-size: 12px; margin-top: -15px; margin-bottom: 30px; line-height: 1.4; }
+        .btn { width: 100%; background-color: #559ef6; color: white; padding: 14px; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: 600; }
+        .btn-success { background-color: #2ecc71; margin-top: 10px;}
+    </style>
+</head>
+<body>
+<div class="container">
+    <h2>¡La sala ha sido creada exitosamente!</h2>
+    <p>ID de la sala</p>
+    <div class="info-box">
+        <span id="displayRoomId">Cargando...</span>
+        <span class="copy-icon" onclick="copyToClipboard('displayRoomId')">📋</span>
+    </div>
+    <p>Master Key de recuperación</p>
+    <div class="info-box">
+        <span id="displayMasterKey">Cargando...</span>
+        <span class="copy-icon" onclick="copyToClipboard('displayMasterKey')">📋</span>
+    </div>
+    <p class="warning">Importante: No compartas tu Master Key. Anótala para recuperar el control administrativo en caso de ser necesario.</p>
+
+    <button onclick="irALaSala()" class="btn btn-success">Ir directamente a la Sala ➔</button>
+</div>
+
+<script>
+    const roomId = sessionStorage.getItem('lastCreatedRoomId');
+    const masterKey = sessionStorage.getItem('lastCreatedMasterKey');
+
+    if(roomId && masterKey) {
+        document.getElementById('displayRoomId').innerText = roomId;
+        document.getElementById('displayMasterKey').innerText = masterKey;
+    }
+
+    function irALaSala() { window.location.href = `/room/${roomId}`; }
+
+    function copyToClipboard(elementId) {
+        const text = document.getElementById(elementId).innerText;
+        navigator.clipboard.writeText(text).then(() => { alert("Copiado al portapapeles"); });
+    }
+</script>
+</body>
+</html>
