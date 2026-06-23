@@ -28,6 +28,7 @@ La aplicacion se puede reproducir con las instruccones a continuación, una vez 
 * **Capa de Datos:** Spring Data JPA (Persistencia)
 * **Motor de Base de Datos:** MySQL
 * **Pruebas Unitarias e Integración:** JUnit 5, Mockito y Spring Boot Test
+* **Levantamiento del proyecto:** Docker Desktop
 
 ---
 
