@@ -40,27 +40,36 @@ public class GoogleCalendarAuthService {
     private com.google.api.client.http.HttpTransport httpTransport;
 
     @PostConstruct
-    public void init() throws Exception {
-        this.httpTransport = GoogleNetHttpTransport.newTrustedTransport();
-        this.dataStoreFactory = new FileDataStoreFactory(new File(TOKENS_DIRECTORY_PATH));
+    public void init() {
+        try {
+            if (clientId == null || clientId.isBlank() || clientSecret == null || clientSecret.isBlank()) {
+                System.err.println("[GoogleCalendar] AVISO: GOOGLE_CLIENT_ID o GOOGLE_CLIENT_SECRET no configurados. La integración con Google Calendar estará deshabilitada.");
+                return;
+            }
+            this.httpTransport = GoogleNetHttpTransport.newTrustedTransport();
+            this.dataStoreFactory = new FileDataStoreFactory(new File(TOKENS_DIRECTORY_PATH));
 
-        GoogleClientSecrets clientSecrets = new GoogleClientSecrets();
-        clientSecrets.setInstalled(new GoogleClientSecrets.Details()
-                .setClientId(clientId)
-                .setClientSecret(clientSecret)
-                .setRedirectUris(Collections.singletonList(redirectUri)));
+            GoogleClientSecrets clientSecrets = new GoogleClientSecrets();
+            clientSecrets.setInstalled(new GoogleClientSecrets.Details()
+                    .setClientId(clientId)
+                    .setClientSecret(clientSecret)
+                    .setRedirectUris(Collections.singletonList(redirectUri)));
 
-        this.flow = new GoogleAuthorizationCodeFlow.Builder(
-                httpTransport, JSON_FACTORY, clientSecrets, SCOPES)
-                .setDataStoreFactory(dataStoreFactory)
-                .setAccessType("offline")
-                .build();
+            this.flow = new GoogleAuthorizationCodeFlow.Builder(
+                    httpTransport, JSON_FACTORY, clientSecrets, SCOPES)
+                    .setDataStoreFactory(dataStoreFactory)
+                    .setAccessType("offline")
+                    .build();
+        } catch (Exception e) {
+            System.err.println("[GoogleCalendar] Error al inicializar: " + e.getMessage() + ". La integración estará deshabilitada.");
+        }
     }
 
     /**
      * Genera la URL de autorización para redirigir al usuario a Google
      */
     public String getAuthorizationUrl() {
+        if (flow == null) throw new RuntimeException("Google Calendar no está configurado.");
         return flow.newAuthorizationUrl()
                 .setRedirectUri(redirectUri)
                 .setAccessType("offline")
@@ -71,6 +80,7 @@ public class GoogleCalendarAuthService {
      * Intercambia el código de autorización por un token de acceso (Credential)
      */
     public Credential exchangeCodeForCredential(String code) throws Exception {
+        if (flow == null) throw new RuntimeException("Google Calendar no está configurado.");
         TokenResponse tokenResponse = flow.newTokenRequest(code)
                 .setRedirectUri(redirectUri)
                 .execute();
@@ -82,6 +92,7 @@ public class GoogleCalendarAuthService {
      * Obtiene las credenciales guardadas (si el usuario ya autorizó)
      */
     public Credential getStoredCredentials() throws Exception {
+        if (flow == null) return null;
         return flow.loadCredential("user");
     }
 

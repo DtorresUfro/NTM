@@ -1,4 +1,5 @@
 package com.Ntm.entity;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import java.util.Date;
 
@@ -34,10 +35,13 @@ public class Task {
     @Column(name = "google_event_id")
     private String googleEventId;
 
+    @JsonIgnore
     @ManyToOne
     @JoinColumn(name = "calendar_id")
     private Calendar calendar;
 
+
+    public Task() {}
 
     public Task(String title, String description, Date dueDate, String createdBy, Date createdAt, boolean completed) {
         this.title = title;
@@ -60,6 +64,14 @@ public class Task {
     }
 
     public void delete(){
+    }
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
     }
 
     public String getTitle() {
