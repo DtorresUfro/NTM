@@ -20,12 +20,14 @@ public class Calendar {
 
     public Calendar() {}
 
-    public void addTask(Task tarea) {
-        this.tareas.add(tarea);
+    public void addNote(Note nota) {
+        notas.add(nota);
+        nota.setCalendar(this);
     }
 
-    public void addNote(Note nota) {
-        this.notas.add(nota);
+    public void addTask(Task tarea) {
+        tareas.add(tarea);
+        tarea.setCalendar(this);
     }
 
     public List<Task> getTasks() {

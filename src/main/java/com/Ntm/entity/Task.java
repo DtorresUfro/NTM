@@ -20,6 +20,9 @@ public class Task {
     @Column(columnDefinition = "TEXT")
     private String description;
 
+    @Column(name = "start_date", nullable = false)
+    private Date startDate;
+
     @Column(name = "due_date", nullable = false)
     private Date dueDate;
 
@@ -34,6 +37,9 @@ public class Task {
 
     @Column(name = "google_event_id")
     private String googleEventId;
+
+    @Column(nullable = false)
+    private boolean active = true;
 
     @JsonIgnore
     @ManyToOne
@@ -59,6 +65,7 @@ public class Task {
         this.completed = true;
     }
 
+
     public boolean isOverdue(){
         return false;
     }
@@ -68,6 +75,14 @@ public class Task {
 
     public Long getId() {
         return id;
+    }
+
+    public String getRoomMasterKey() {
+        return roomMasterKey;
+    }
+
+    public void setRoomMasterKey(String roomMasterKey) {
+        this.roomMasterKey = roomMasterKey;
     }
 
     public void setId(Long id) {
@@ -88,6 +103,14 @@ public class Task {
 
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    public Date getStartDate() {
+        return startDate;
+    }
+
+    public void setStartDate(Date startDate) {
+        this.startDate = startDate;
     }
 
     public Date getDueDate() {
@@ -124,5 +147,21 @@ public class Task {
 
     public void setCompleted(boolean completed) {
         this.completed = completed;
+    }
+
+    public Calendar getCalendar() {
+        return calendar;
+    }
+
+    public void setCalendar(Calendar calendar) {
+        this.calendar = calendar;
+    }
+
+    public boolean isActive() {
+        return active;
+    }
+
+    public void setActive(boolean active) {
+        this.active = active;
     }
 }

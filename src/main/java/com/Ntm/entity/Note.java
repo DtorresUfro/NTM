@@ -36,6 +36,8 @@ public class Note {
     @JoinColumn(name = "calendar_id")
     private Calendar calendar;
 
+    public Note() {}
+
     public Note(String title, String content, String createdBy) {
         this.title = title;
         this.content = content;
@@ -53,6 +55,10 @@ public class Note {
     public void delete() {
         this.active = false;
     }
+
+    public String getRoomMasterKey() { return roomMasterKey; }
+
+    public void setRoomMasterKey(String roomMasterKey) { this.roomMasterKey = roomMasterKey; }
 
     public String getTitle() {
         return title;
@@ -97,4 +103,8 @@ public class Note {
     public void setActive(boolean active) {
         this.active = active;
     }
+
+    public Calendar getCalendar() { return calendar; }
+
+    public void setCalendar(Calendar calendar) { this.calendar = calendar; }
 }

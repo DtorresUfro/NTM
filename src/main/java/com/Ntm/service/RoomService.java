@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
+
 @Service
 public class RoomService {
     private final RoomRepository roomRepository;
@@ -44,22 +45,11 @@ public class RoomService {
                 request.getAdminName()
         );
         roomRepository.save(room);
-        createGoogleCalendarForRoom(room);
         return new CreateRoomResponse(
                 room.getId(),
                 room.getMasterKey(),
                 room.getName()
         );
-    }
-
-    private void createGoogleCalendarForRoom(Room room) {
-        try {
-            String calendarId = googleCalendarService.createCalendarForRoom(room.getName(), room.getAdminName());
-            room.setGoogleCalendarId(calendarId);
-            roomRepository.save(room);
-        } catch (Exception e) {
-            System.err.println("Hubo un error al crear el calendario para sala '" + room.getName() + "': " + e.getMessage());
-        }
     }
 
     private void validateJoinRequest(JoinRoomRequest request) {
@@ -152,6 +142,7 @@ public class RoomService {
         }
 
         Note newNote = new Note(request.getNoteTitle(), request.getContent(), request.getUsername());
+        newNote.setRoomMasterKey(room.getMasterKey());
 
         if (room.getCalendar() == null) {
             room.setCalendar(new Calendar());
@@ -215,6 +206,8 @@ public class RoomService {
                 new Date(),
                 false
         );
+        newTask.setRoomMasterKey(room.getMasterKey());
+        newTask.setStartDate(new Date());
 
         if (room.getGoogleCalendarId() != null) {
             try {
