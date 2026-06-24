@@ -1,10 +1,13 @@
 package com.Ntm.controller;
 
 import com.Ntm.dto.*;
+import com.Ntm.entity.Task;
 import com.Ntm.service.RoomService;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.http.ResponseEntity;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/rooms")
@@ -30,6 +33,7 @@ public class RoomController {
     public DeleteRoomResponse deleteRoom(@PathVariable String roomId, @RequestBody DeleteRoomRequest request) {
         return roomService.deleteRoom(roomId, request);
     }
+
     @PostMapping("/validate-masterkey")
     public ResponseEntity<AdminAccessResponse> accessWithMasterKey(@RequestBody AdminAccessRequest request) {
         AdminAccessResponse response = roomService.grantAdminAccess(request);
@@ -45,6 +49,10 @@ public class RoomController {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
+
+    // ==========================================
+    // ENDPOINTS PARA TAREAS
+    // ==========================================
 
     @PostMapping("/tasks")
     public ResponseEntity<String> createTask(@RequestBody TaskRequest request) {
@@ -75,6 +83,34 @@ public class RoomController {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
+
+    @DeleteMapping("/tasks")
+    public ResponseEntity<String> deleteTask(@RequestBody TaskRequest request) {
+        try {
+            roomService.deleteTask(request);
+            return ResponseEntity.ok("Tarea eliminada exitosamente");
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    // ==========================================
+    // ENDPOINT PARA OBTENER TAREAS (CALENDARIO)
+    // ==========================================
+
+    @GetMapping("/{roomId}/tasks")
+    public ResponseEntity<List<Task>> getTasksByRoom(@PathVariable String roomId) {
+        try {
+            List<Task> tasks = roomService.getTasksByRoom(roomId);
+            return ResponseEntity.ok(tasks);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    // ==========================================
+    // ENDPOINTS PARA NOTAS
+    // ==========================================
 
     @PostMapping("/notes")
     public ResponseEntity<String> createNote(@RequestBody NoteRequest request) {

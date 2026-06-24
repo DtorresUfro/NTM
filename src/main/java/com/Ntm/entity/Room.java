@@ -1,6 +1,6 @@
 package com.Ntm.entity;
-import jakarta.persistence.*;
 
+import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -15,6 +15,7 @@ public class Room {
     private LocalDateTime createdAt;
     private LocalDateTime lastActivity;
     private String adminName;
+
     @ElementCollection
     @CollectionTable(
             name = "room_participants",
@@ -22,12 +23,16 @@ public class Room {
     )
     @Column(name = "participant_name")
     private List<String> participants = new ArrayList<>();
-    @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
+
+    @Column(name = "google_calendar_id")
+    private String googleCalendarId;
+
+    @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)   // ← SOLO @OneToOne
     @JoinColumn(name = "calendar_id")
     private Calendar calendar;
 
-    public Room() {
-    }
+    public Room() {}
+
     public Room(String name, String adminName) {
         this.name = name;
         this.adminName = adminName;
@@ -36,32 +41,35 @@ public class Room {
         this.createdAt = LocalDateTime.now();
         this.lastActivity = LocalDateTime.now();
         this.participants.add(adminName);
+        this.googleCalendarId = null;
     }
 
     public String generateJoinId() {
         return UUID.randomUUID().toString().substring(0, 8).toUpperCase();
     }
+
     public String generateMasterKey() {
         return "MK-" + UUID.randomUUID().toString().substring(0, 5).toUpperCase();
     }
 
+    // Getters y Setters
     public String getId() { return id; }
     public String getMasterKey() { return masterKey; }
     public String getName() { return name; }
     public List<String> getParticipants() { return participants; }
-    public String getAdminName(){
-        return adminName;
-    }
+    public String getAdminName() { return adminName; }
+    public String getGoogleCalendarId() { return googleCalendarId; }
+    public Calendar getCalendar() { return calendar; }
+
+    public void setId(String id) { this.id = id; }
+    public void setName(String name) { this.name = name; }
+    public void setMasterKey(String masterKey) { this.masterKey = masterKey; }
+    public void setAdminName(String adminName) { this.adminName = adminName; }
+    public void setGoogleCalendarId(String googleCalendarId) { this.googleCalendarId = googleCalendarId; }
+    public void setCalendar(Calendar calendar) { this.calendar = calendar; }
 
     public void addParticipant(String name) {
         this.participants.add(name);
         this.lastActivity = LocalDateTime.now();
-    }
-    public Calendar getCalendar() {
-        return this.calendar;
-    }
-
-    public void setCalendar(Calendar calendar) {
-        this.calendar = calendar;
     }
 }

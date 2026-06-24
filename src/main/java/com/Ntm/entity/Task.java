@@ -1,13 +1,43 @@
 package com.Ntm.entity;
-import java.util.*;
+import jakarta.persistence.*;
+import java.util.Date;
 
+@Entity
+@Table(name = "task")
 public class Task {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "room_master_key", nullable = false)
+    private String roomMasterKey;
+
+    @Column(nullable = false, length = 200)
     private String title;
+
+    @Column(columnDefinition = "TEXT")
     private String description;
+
+    @Column(name = "due_date", nullable = false)
     private Date dueDate;
+
+    @Column(name = "created_by", nullable = false)
     private String createdBy;
+
+    @Column(name = "created_at")
     private Date createdAt;
+
+    @Column(nullable = false)
     private boolean completed;
+
+    @Column(name = "google_event_id")
+    private String googleEventId;
+
+    @ManyToOne
+    @JoinColumn(name = "calendar_id")
+    private Calendar calendar;
+
 
     public Task(String title, String description, Date dueDate, String createdBy, Date createdAt, boolean completed) {
         this.title = title;
@@ -71,6 +101,10 @@ public class Task {
     public void setCreatedAt(Date createdAt) {
         this.createdAt = createdAt;
     }
+
+    public String getGoogleEventId() { return googleEventId; }
+
+    public void setGoogleEventId(String googleEventId) { this.googleEventId = googleEventId; }
 
     public boolean isCompleted() {
         return completed;

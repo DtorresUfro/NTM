@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sala de Trabajo</title>
+
+    <!-- FullCalendar CSS -->
+    <link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/main.min.css' rel='stylesheet' />
+
     <style>
         body { background-color: #eaf3fa; margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #2b455e; }
         .header { background-color: #2b455e; color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;}
@@ -30,14 +34,23 @@
 
         /* Formularios y Componentes */
         .form-group { margin-bottom: 15px; }
-        input, textarea { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-family: inherit;}
+        input, textarea { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-family: inherit; }
         .btn { background-color: #559ef6; color: white; padding: 10px 15px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
         .btn-danger { background-color: #e74c3c; }
         .btn-warning { background-color: #e67e22; }
 
         /* Calendario y Buzón Visual */
-        .calendario-box { height: 300px; background: #fdfdfd; border: 2px dashed #7cb7f9; border-radius: 8px; display: flex; justify-content: center; align-items: center; color: #999; }
         .buzon-msg { background: #fff3cd; color: #856404; padding: 15px; border-left: 5px solid #ffeeba; border-radius: 4px; margin-bottom: 10px; }
+
+        #calendar-container {
+            background: white;
+            padding: 10px;
+            border-radius: 8px;
+            min-height: 400px;
+        }
+        #calendar-container .fc {
+            max-width: 100%;
+        }
     </style>
 </head>
 <body>
@@ -70,6 +83,7 @@
             <div class="tab-btn admin" id="adminTabBtn" onclick="openTab('admin')"> Panel Admin</div>
         </div>
 
+        <!-- NOTAS -->
         <div id="notas" class="tab-content active">
             <h3>Crear / Editar Nota</h3>
             <form id="noteForm">
@@ -83,6 +97,7 @@
             </form>
         </div>
 
+        <!-- TAREAS -->
         <div id="tareas" class="tab-content">
             <h3>Crear Tarea</h3>
             <form id="taskForm">
@@ -92,18 +107,23 @@
                 <div class="form-group">
                     <textarea id="taskContent" rows="3" placeholder="Descripción de la tarea..."></textarea>
                 </div>
+                <div class="form-group">
+                    <input type="date" id="taskDueDate" required>
+                </div>
                 <button type="submit" class="btn">Asignar Tarea</button>
             </form>
         </div>
 
+        <!-- CALENDARIO -->
         <div id="calendario" class="tab-content">
-            <h3>Calendario de la Sala</h3>
-            <p>Visualización de fechas límite y organización del equipo.</p>
-            <div class="calendario-box">
-                [ Interfaz del Calendario Próximamente ]
-            </div>
+            <h3>📅 Calendario de la Sala</h3>
+            <p style="color: #666; margin-bottom: 15px;">
+                Visualización de fechas límite y organización del equipo.
+            </p>
+            <div id="calendar-container"></div>
         </div>
 
+        <!-- BUZÓN -->
         <div id="buzon" class="tab-content">
             <h3>Buzón de Notificaciones</h3>
             <p>Aquí se muestran las alertas de tareas atrasadas o mensajes del sistema.</p>
@@ -112,11 +132,12 @@
             </div>
         </div>
 
+        <!-- ADMIN -->
         <div id="admin" class="tab-content">
             <h3 style="color: #e67e22;">Panel de Administrador</h3>
 
             <div style="border: 1px solid #ddd; padding: 15px; border-radius: 6px; margin-bottom: 20px;">
-                <h4>Expulsar Usuario </h4>
+                <h4>Expulsar Usuario</h4>
                 <input type="text" id="userToRemove" placeholder="Nombre del usuario a expulsar" style="width: 70%; display:inline-block;">
                 <button onclick="expulsarUsuario()" class="btn btn-warning">Expulsar</button>
             </div>
@@ -129,7 +150,15 @@
     </div>
 </div>
 
+<!-- FullCalendar JS -->
+<script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/main.min.js'></script>
+<script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/locales/es.global.min.js'></script>
+
 <script th:inline="javascript">
+    // ==========================================
+    // VARIABLES GLOBALES
+    // ==========================================
+
     const roomId = /*[[${roomId}]]*/ '';
     const currentUser = sessionStorage.getItem('currentUser') || 'Invitado';
     const isAdmin = sessionStorage.getItem('isAdmin') === 'true';
@@ -140,7 +169,10 @@
         document.getElementById('adminTabBtn').style.display = 'block';
     }
 
-    // El manejo de cambio de pestañas usa el estado local del navegador para no refrescar ni causar errores de ruta
+    // ==========================================
+    // FUNCIONES PARA PESTAÑAS
+    // ==========================================
+
     function openTab(tabId) {
         document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
         document.querySelectorAll('.tab-btn').forEach(tb => tb.classList.remove('active'));
@@ -149,7 +181,20 @@
         if (event && event.currentTarget) {
             event.currentTarget.classList.add('active');
         }
+
+        // Si se abre la pestaña de calendario, cargarlo
+        if (tabId === 'calendario') {
+            const calendarContainer = document.getElementById('calendar-container');
+            // Solo cargar si no tiene la clase 'fc' (no está renderizado)
+            if (calendarContainer && !calendarContainer.classList.contains('fc')) {
+                cargarCalendario();
+            }
+        }
     }
+
+    // ==========================================
+    // FUNCIONES PARA TAREAS
+    // ==========================================
 
     async function enviarPeticion(url, data) {
         try {
@@ -158,15 +203,24 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
             });
-            if(res.ok) alert("¡Guardado correctamente!");
-            else alert("Ocurrió un error al guardar.");
-        } catch (e) { alert("Error de conexión."); }
+            if(res.ok) {
+                alert("¡Guardado correctamente!");
+                return true;
+            } else {
+                alert("Ocurrió un error al guardar.");
+                return false;
+            }
+        } catch (e) {
+            alert("Error de conexión.");
+            return false;
+        }
     }
 
     document.getElementById('noteForm').addEventListener('submit', (e) => {
         e.preventDefault();
         enviarPeticion('/api/rooms/notes', {
-            roomId: roomId, username: currentUser,
+            roomId: roomId,
+            username: currentUser,
             noteTitle: document.getElementById('noteTitle').value,
             content: document.getElementById('noteContent').value
         });
@@ -174,12 +228,23 @@
 
     document.getElementById('taskForm').addEventListener('submit', (e) => {
         e.preventDefault();
+        const dueDate = document.getElementById('taskDueDate').value;
+        if (!dueDate) {
+            alert('Por favor, selecciona una fecha de vencimiento.');
+            return;
+        }
         enviarPeticion('/api/rooms/tasks', {
-            roomId: roomId, username: currentUser,
+            roomId: roomId,
+            username: currentUser,
             taskTitle: document.getElementById('taskTitle').value,
-            content: document.getElementById('taskContent').value
+            description: document.getElementById('taskContent').value,
+            dueDate: new Date(dueDate).toISOString()
         });
     });
+
+    // ==========================================
+    // FUNCIONES DE ADMINISTRACIÓN
+    // ==========================================
 
     async function expulsarUsuario() {
         const userToRemove = document.getElementById('userToRemove').value;
@@ -190,7 +255,7 @@
         });
         if(res.ok) {
             alert("Usuario expulsado.");
-            window.location.reload(); // Recarga la vista para actualizar la lista de miembros de la BD
+            window.location.reload();
         } else {
             alert(await res.text());
         }
@@ -207,6 +272,80 @@
             else alert("No tienes permisos para disolver la sala.");
         }
     }
+
+    // ==========================================
+    // FUNCIONES PARA EL CALENDARIO
+    // ==========================================
+
+    async function cargarCalendario() {
+        const calendarContainer = document.getElementById('calendar-container');
+
+        if (!calendarContainer) return;
+
+        try {
+            // Obtener las tareas de la sala desde el backend
+            const response = await fetch(`/api/rooms/${roomId}/tasks`);
+
+            if (!response.ok) {
+                throw new Error('No se pudieron cargar las tareas');
+            }
+
+            const tasks = await response.json();
+
+            // Mapear tareas a eventos de FullCalendar
+            const events = tasks.map(task => ({
+                id: task.id,
+                title: task.title,
+                start: task.dueDate ? task.dueDate.split('T')[0] : new Date().toISOString().split('T')[0],
+                backgroundColor: task.completed ? '#2ecc71' : '#559ef6',
+                borderColor: task.completed ? '#27ae60' : '#3498db',
+                textColor: '#ffffff',
+                extendedProps: {
+                    description: task.description || 'Sin descripción',
+                    createdBy: task.createdBy,
+                    completed: task.completed
+                }
+            }));
+
+            // Inicializar FullCalendar
+            const calendar = new FullCalendar.Calendar(calendarContainer, {
+                locale: 'es',
+                initialView: 'dayGridMonth',
+                headerToolbar: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: 'dayGridMonth,timeGridWeek,listMonth'
+                },
+                events: events,
+                eventClick: function(info) {
+                    const task = info.event;
+                    const desc = task.extendedProps.description || 'Sin descripción';
+                    const creador = task.extendedProps.createdBy || 'Desconocido';
+                    const estado = task.extendedProps.completed ? '✅ Completada' : '⏳ Pendiente';
+
+                    alert(`📋 ${task.title}\n\n📝 ${desc}\n\n👤 Creado por: ${creador}\n📌 Estado: ${estado}`);
+                },
+                height: 500,
+                firstDay: 1
+            });
+
+            calendar.render();
+
+        } catch (error) {
+            console.error('Error al cargar el calendario:', error);
+            calendarContainer.innerHTML = '<p style="color: #e74c3c;">Error al cargar las tareas. Asegúrate de que el servidor esté corriendo.</p>';
+        }
+    }
+
+    // Cargar el calendario cuando la página esté lista
+    document.addEventListener('DOMContentLoaded', function() {
+        // Si la pestaña de calendario está activa por defecto, cargarlo
+        const calendarioTab = document.getElementById('calendario');
+        if (calendarioTab && calendarioTab.classList.contains('active')) {
+            setTimeout(cargarCalendario, 500);
+        }
+    });
+
 </script>
 </body>
 </html>
