@@ -9,16 +9,22 @@ import com.Ntm.exception.RoomNotFoundException;
 import com.Ntm.exception.UnauthorizedRoomActionException;
 import com.Ntm.dto.*;
 import com.Ntm.repository.RoomRepository;
+import com.google.api.services.calendar.model.Event;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
+
 
 @Service
 public class RoomService {
     private final RoomRepository roomRepository;
+    private final GoogleCalendarEventService googleCalendarService;
 
-    public RoomService(RoomRepository roomRepository) {
+    public RoomService(RoomRepository roomRepository, GoogleCalendarEventService googleCalendarService) {
         this.roomRepository = roomRepository;
+        this.googleCalendarService = googleCalendarService;
     }
 
     private void validateRoomData(CreateRoomRequest request) {
@@ -136,6 +142,7 @@ public class RoomService {
         }
 
         Note newNote = new Note(request.getNoteTitle(), request.getContent(), request.getUsername());
+        newNote.setRoomMasterKey(room.getMasterKey());
 
         if (room.getCalendar() == null) {
             room.setCalendar(new Calendar());
@@ -175,7 +182,7 @@ public class RoomService {
             throw new RuntimeException("No tienes permisos para eliminar esta nota");
         }
 
-        note.delete();
+        room.getCalendar().getNotes().remove(note);
         roomRepository.save(room);
     }
 
@@ -199,6 +206,21 @@ public class RoomService {
                 new Date(),
                 false
         );
+        newTask.setRoomMasterKey(room.getMasterKey());
+        newTask.setStartDate(new Date());
+
+        if (room.getGoogleCalendarId() != null) {
+            try {
+                Event event =
+                        googleCalendarService.createEventFromTask(newTask, room.getGoogleCalendarId());
+                newTask.setGoogleEventId(event.getId());
+                System.out.println("Tarea creada" + event.getId());
+            } catch (Exception e) {
+                System.err.println("Error al crear la tarea en el Calendario: " + e.getMessage());
+            }
+        } else {
+            System.out.println("La sala no tiene calendario, no se creará la tarea.");
+        }
 
         if (room.getCalendar() == null) {
             room.setCalendar(new Calendar());
@@ -217,7 +239,38 @@ public class RoomService {
                 .findFirst()
                 .orElseThrow(() -> new RuntimeException("Tarea no encontrada"));
 
+        String oldEventId = task.getGoogleEventId();
+
         task.edit(request.getTaskTitle(), request.getDescription(), request.getDueDate());
+
+        if (oldEventId != null && room.getGoogleCalendarId() != null) {
+            try {
+                googleCalendarService.updateEventFromTask(oldEventId, task, room.getGoogleCalendarId());
+            } catch (Exception e) {
+                System.err.println("Hubo un error al actualizar la tarea: " + e.getMessage());
+            }
+        }
+
+        roomRepository.save(room);
+    }
+
+    public void deleteTask(TaskRequest request) {
+        Room room = roomRepository.findByRoomId(request.getRoomId())
+                .orElseThrow(() -> new RuntimeException("Sala no encontrada"));
+
+        Task task = room.getCalendar().getTasks().stream()
+                .filter(t -> t.getTitle().equals(request.getTaskTitle()))
+                .findFirst()
+                .orElseThrow(() -> new RuntimeException("Tarea no encontrada"));
+
+        if (task.getGoogleEventId() != null && room.getGoogleCalendarId() != null) {
+            try {
+                googleCalendarService.deleteEvent(task.getGoogleEventId(), room.getGoogleCalendarId());
+            } catch (Exception e) {
+                System.err.println("Error al eliminar la tarea en el Calendario: " + e.getMessage());
+            }
+        }
+        room.getCalendar().getTasks().remove(task);
         roomRepository.save(room);
     }
 
@@ -232,6 +285,26 @@ public class RoomService {
 
         task.complete();
         roomRepository.save(room);
+
+        if (task.getGoogleEventId() != null && room.getGoogleCalendarId() != null) {
+            try {
+                googleCalendarService.updateEventFromTask(task.getGoogleEventId(), task, room.getGoogleCalendarId());
+                System.out.println("Tarea Actualizada como Completada");
+            } catch (Exception e) {
+                System.err.println("Error al actualizar la tarea: " + e.getMessage());
+            }
+        }
+    }
+
+    public List<Task> getTasksByRoom(String roomId) {
+        Room room = roomRepository.findByRoomId(roomId)
+                .orElseThrow(() -> new RuntimeException("Sala no encontrada"));
+
+        if (room.getCalendar() == null) {
+            return new ArrayList<>();
+        }
+
+        return room.getCalendar().getTasks();
     }
 
     // ==========================================

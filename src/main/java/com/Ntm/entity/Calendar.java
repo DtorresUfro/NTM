@@ -12,20 +12,22 @@ public class Calendar {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Transient
+    @OneToMany(mappedBy = "calendar", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Task> tareas = new ArrayList<>();
 
-    @Transient
+    @OneToMany(mappedBy = "calendar", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Note> notas = new ArrayList<>();
 
     public Calendar() {}
 
-    public void addTask(Task tarea) {
-        this.tareas.add(tarea);
+    public void addNote(Note nota) {
+        notas.add(nota);
+        nota.setCalendar(this);
     }
 
-    public void addNote(Note nota) {
-        this.notas.add(nota);
+    public void addTask(Task tarea) {
+        tareas.add(tarea);
+        tarea.setCalendar(this);
     }
 
     public List<Task> getTasks() {

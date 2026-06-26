@@ -1,78 +1,266 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sala de Trabajo</title>
-    <link rel="stylesheet" th:href="@{/css/room.css}">
-</head>
-<body>
-<div class="header">
-    <div><strong>Sala ID:</strong> <span th:text="${roomId}"></span></div>
-    <div>
-        <span id="currentUserDisplay"></span> |
-        <a href="/" style="color: #ff9999; text-decoration: none; font-weight: bold;">Salir</a>
-    </div>
-</div>
 
-<div class="main-layout">
-    <div class="sidebar">
-        <h3 style="margin-top: 0; font-size: 18px; border-bottom: 2px solid #559ef6; padding-bottom: 8px;">👥 Miembros en la Sala</h3>
-        <ul id="listaUsuariosHtml" class="user-list">
-            <li th:each="user : ${participants}" class="user-item">
-                <span class="user-badge"></span>
-                <span th:text="${user}"></span>
-            </li>
-            <li th:if="${#lists.isEmpty(participants)}" class="user-item">No hay miembros registrados</li>
-        </ul>
-    </div>
+<html xmlns:th="http://www.thymeleaf.org"> <head> <meta charset="UTF-8"> <meta name="viewport" content="width=device-width, initial-scale=1.0"> <title>Sala de Trabajo</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.21/index.global.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.21/locales-all.global.min.js"></script>
+
+    <style>
+        body {
+            background-color: #eaf3fa;
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #2b455e;
+        }
+
+        .header {
+            background-color: #2b455e;
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .main-layout {
+            display: flex;
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 0 20px;
+            gap: 20px;
+        }
+
+        .sidebar {
+            width: 250px;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            height: fit-content;
+        }
+
+        .container {
+            flex-grow: 1;
+        }
+
+        .user-list {
+            list-style: none;
+            padding: 0;
+            margin: 10px 0 0 0;
+        }
+
+        .user-item {
+            padding: 8px 10px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+        }
+
+        .user-badge {
+            width: 8px;
+            height: 8px;
+            background-color: #2ecc71;
+            border-radius: 50%;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .tab-btn {
+            background-color: #fff;
+            border: 1px solid #7cb7f9;
+            padding: 10px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            color: #559ef6;
+            font-weight: bold;
+            flex-grow: 1;
+            text-align: center;
+        }
+
+        .tab-btn.active {
+            background-color: #559ef6;
+            color: white;
+        }
+
+        .tab-btn.admin {
+            background-color: #f39c12;
+            color: white;
+            border-color: #e67e22;
+            display: none;
+        }
+
+        .tab-content {
+            display: none;
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        input,
+        textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-family: inherit;
+        }
+
+        .btn {
+            background-color: #559ef6;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .btn-danger {
+            background-color: #e74c3c;
+        }
+
+        .btn-warning {
+            background-color: #e67e22;
+        }
+
+        .buzon-msg {
+            background: #fff3cd;
+            color: #856404;
+            padding: 15px;
+            border-left: 5px solid #ffeeba;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+
+        #calendar-container {
+            background: white;
+            padding: 10px;
+            border-radius: 8px;
+            min-height: 500px;
+        }
+
+        #calendar-container .fc {
+            max-width: 100%;
+        }
+
+        .calendar-error {
+            color: #e74c3c;
+            font-weight: bold;
+        }
+
+        @media (max-width: 800px) {
+            .main-layout {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                width: auto;
+            }
+        }
+    </style>
+
+</head> <body> <div class="header"> <div><strong>Sala ID:</strong> <span th:text="${roomId}"></span></div> <div> <span id="currentUserDisplay"></span> | <a href="/" style="color: #ff9999; text-decoration: none; font-weight: bold;">Salir</a> </div> </div>
+
+<div class="main-layout"> <div class="sidebar"> <h3 style="margin-top: 0; font-size: 18px; border-bottom: 2px solid #559ef6; padding-bottom: 8px;"> 👥 Miembros en la Sala </h3>
+
+    <ul id="listaUsuariosHtml" class="user-list">
+        <li th:each="user : ${participants}" class="user-item">
+            <span class="user-badge"></span>
+            <span th:text="${user}"></span>
+        </li>
+        <li th:if="${#lists.isEmpty(participants)}" class="user-item">
+            No hay miembros registrados
+        </li>
+    </ul>
+</div>
 
     <div class="container">
         <div class="tabs">
-            <div class="tab-btn active" onclick="openTab('notas')"> Notas </div>
-            <div class="tab-btn" onclick="openTab('tareas')"> Tareas</div>
-            <div class="tab-btn" onclick="openTab('calendario')"> Calendario</div>
-            <div class="tab-btn" onclick="openTab('buzon')"> Buzón</div>
-            <div class="tab-btn admin" id="adminTabBtn" onclick="openTab('admin')"> Panel Admin</div>
+            <div class="tab-btn active" onclick="openTab('notas', this)">Notas</div>
+            <div class="tab-btn" onclick="openTab('tareas', this)">Tareas</div>
+            <div class="tab-btn" onclick="openTab('calendario', this)">Calendario</div>
+            <div class="tab-btn" onclick="openTab('buzon', this)">Buzón</div>
+            <div class="tab-btn admin" id="adminTabBtn" onclick="openTab('admin', this)">Panel Admin</div>
         </div>
 
         <div id="notas" class="tab-content active">
             <h3>Crear / Editar Nota</h3>
+
             <form id="noteForm">
                 <div class="form-group">
                     <input type="text" id="noteTitle" placeholder="Título de la nota" required>
                 </div>
+
                 <div class="form-group">
                     <textarea id="noteContent" rows="4" placeholder="Contenido de la nota..." required></textarea>
                 </div>
+
                 <button type="submit" class="btn">Guardar Nota</button>
             </form>
         </div>
 
         <div id="tareas" class="tab-content">
             <h3>Crear Tarea</h3>
+
             <form id="taskForm">
                 <div class="form-group">
                     <input type="text" id="taskTitle" placeholder="Título de la tarea" required>
                 </div>
+
                 <div class="form-group">
                     <textarea id="taskContent" rows="3" placeholder="Descripción de la tarea..."></textarea>
                 </div>
+
+                <div class="form-group">
+                    <input type="datetime-local" id="taskDueDate" required>
+                </div>
+
                 <button type="submit" class="btn">Asignar Tarea</button>
             </form>
         </div>
 
         <div id="calendario" class="tab-content">
             <h3>Calendario de la Sala</h3>
-            <p>Visualización de fechas límite y organización del equipo.</p>
-            <div class="calendario-box">
-                [ Interfaz del Calendario Próximamente ]
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+
+                <div id="calendar-container"></div>
+
+                <div style="height: 500px; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                    <iframe
+                            src="https://calendar.google.com/calendar/embed?src=TU_CALENDARIO_AQUI&ctz=America%2FSantiago"
+                            style="border: 0; width: 100%; height: 100%;"
+                            frameborder="0"
+                            scrolling="no">
+                    </iframe>
+                </div>
+
             </div>
         </div>
 
         <div id="buzon" class="tab-content">
             <h3>Buzón de Notificaciones</h3>
             <p>Aquí se muestran las alertas de tareas atrasadas o mensajes del sistema.</p>
+
             <div class="buzon-msg">
                 <strong>Alerta del sistema:</strong> Aún no tienes tareas atrasadas.
             </div>
@@ -82,7 +270,7 @@
             <h3 style="color: #e67e22;">Panel de Administrador</h3>
 
             <div style="border: 1px solid #ddd; padding: 15px; border-radius: 6px; margin-bottom: 20px;">
-                <h4>Expulsar Usuario </h4>
+                <h4>Expulsar Usuario</h4>
                 <input type="text" id="userToRemove" placeholder="Nombre del usuario a expulsar" style="width: 70%; display:inline-block;">
                 <button onclick="expulsarUsuario()" class="btn btn-warning">Expulsar</button>
             </div>
@@ -93,86 +281,9 @@
             </div>
         </div>
     </div>
+
 </div>
 
-<script th:inline="javascript">
-    const roomId = /*[[${roomId}]]*/ '';
-    const currentUser = sessionStorage.getItem('currentUser') || 'Invitado';
-    const isAdmin = sessionStorage.getItem('isAdmin') === 'true';
+<script th:inline="javascript"> const roomId = /*[[${roomId}]]*/ ''; const currentUser = sessionStorage.getItem('currentUser') || 'Invitado'; const isAdmin = sessionStorage.getItem('isAdmin') === 'true'; let calendarInstance = null; document.getElementById('currentUserDisplay').innerText = '👤 ' + currentUser; if (isAdmin) { document.getElementById('adminTabBtn').style.display = 'block'; } function openTab(tabId, clickedButton) { document.querySelectorAll('.tab-content').forEach(tabContent => { tabContent.classList.remove('active'); }); document.querySelectorAll('.tab-btn').forEach(tabButton => { tabButton.classList.remove('active'); }); document.getElementById(tabId).classList.add('active'); if (clickedButton) { clickedButton.classList.add('active'); } if (tabId === 'calendario') { setTimeout(cargarCalendario, 100); } } async function enviarPeticion(url, data) { try { const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }); if (res.ok) { alert('¡Guardado correctamente!'); return true; } const errorText = await res.text(); alert(errorText || 'Ocurrió un error al guardar.'); return false; } catch (e) { console.error('Error de conexión:', e); alert('Error de conexión.'); return false; } } document.getElementById('noteForm').addEventListener('submit', async (e) => { e.preventDefault(); const saved = await enviarPeticion('/api/rooms/notes', { roomId: roomId, username: currentUser, noteTitle: document.getElementById('noteTitle').value, content: document.getElementById('noteContent').value }); if (saved) { document.getElementById('noteForm').reset(); } }); document.getElementById('taskForm').addEventListener('submit', async (e) => { e.preventDefault(); const dueDateValue = document.getElementById('taskDueDate').value; if (!dueDateValue) { alert('Por favor, selecciona una fecha y hora de vencimiento.'); return; } const saved = await enviarPeticion('/api/rooms/tasks', { roomId: roomId, username: currentUser, taskTitle: document.getElementById('taskTitle').value, description: document.getElementById('taskContent').value, dueDate: new Date(dueDateValue).toISOString() }); if (saved) { document.getElementById('taskForm').reset(); if (calendarInstance) { await cargarCalendario(); } } }); async function expulsarUsuario() { const userToRemove = document.getElementById('userToRemove').value; if (!userToRemove || userToRemove.trim() === '') { alert('Debes ingresar el nombre del usuario a expulsar.'); return; } try { const res = await fetch('/api/rooms/remove-participant', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ roomId: roomId, adminName: currentUser, usernameToRemove: userToRemove }) }); if (res.ok) { alert('Usuario expulsado.'); window.location.reload(); } else { alert(await res.text()); } } catch (e) { console.error('Error al expulsar usuario:', e); alert('Error de conexión.'); } } async function disolverSala() { if (!confirm('¿Estás seguro de eliminar esta sala? Esta acción no se puede deshacer.')) { return; } try { const res = await fetch(`/api/rooms/${roomId}`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ adminName: currentUser }) }); if (res.ok) { window.location.href = '/'; } else { alert('No tienes permisos para disolver la sala.'); } } catch (e) { console.error('Error al disolver sala:', e); alert('Error de conexión.'); } } function mapTasksToCalendarEvents(tasks) { return tasks .filter(task => task.dueDate) .map(task => ({ id: task.id, title: task.title, start: task.dueDate, backgroundColor: task.completed ? '#2ecc71' : '#559ef6', borderColor: task.completed ? '#27ae60' : '#3498db', textColor: '#ffffff', extendedProps: { description: task.description || 'Sin descripción', createdBy: task.createdBy || 'Desconocido', completed: task.completed } })); } async function cargarCalendario() { const calendarContainer = document.getElementById('calendar-container'); if (!calendarContainer) { return; } if (typeof FullCalendar === 'undefined') { calendarContainer.innerHTML = '<p class="calendar-error">No se pudo cargar FullCalendar. Revisa la conexión o el CDN.</p>'; return; } try { const response = await fetch(`/api/rooms/${roomId}/tasks`); if (!response.ok) { throw new Error('No se pudieron cargar las tareas'); } const tasks = await response.json(); const events = mapTasksToCalendarEvents(tasks); if (!calendarInstance) { calendarInstance = new FullCalendar.Calendar(calendarContainer, { locale: 'es', initialView: 'dayGridMonth', headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,listMonth' }, events: events, height: 500, firstDay: 1, eventClick: function(info) { const task = info.event; const description = task.extendedProps.description || 'Sin descripción'; const createdBy = task.extendedProps.createdBy || 'Desconocido'; const status = task.extendedProps.completed ? 'Completada' : 'Pendiente'; alert( `${task.title}\n\n` + `${description}\n\n` + `Creado por: ${createdBy}\n` + `Estado: ${status}` ); } }); calendarInstance.render(); } else { calendarInstance.removeAllEvents(); events.forEach(event => calendarInstance.addEvent(event)); calendarInstance.render(); } } catch (error) { console.error('Error al cargar el calendario:', error); calendarContainer.innerHTML = '<p class="calendar-error">Error al cargar las tareas. Asegúrate de que el servidor esté corriendo y que la sala exista.</p>'; } } </script>
 
-    document.getElementById('currentUserDisplay').innerText = '👤 ' + currentUser;
-
-    if (isAdmin) {
-        document.getElementById('adminTabBtn').style.display = 'block';
-    }
-
-    // El manejo de cambio de pestañas usa el estado local del navegador para no refrescar ni causar errores de ruta
-    function openTab(tabId) {
-        document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
-        document.querySelectorAll('.tab-btn').forEach(tb => tb.classList.remove('active'));
-
-        document.getElementById(tabId).classList.add('active');
-        if (event && event.currentTarget) {
-            event.currentTarget.classList.add('active');
-        }
-    }
-
-    async function enviarPeticion(url, data) {
-        try {
-            const res = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            });
-            if(res.ok) alert("¡Guardado correctamente!");
-            else alert("Ocurrió un error al guardar.");
-        } catch (e) { alert("Error de conexión."); }
-    }
-
-    document.getElementById('noteForm').addEventListener('submit', (e) => {
-        e.preventDefault();
-        enviarPeticion('/api/rooms/notes', {
-            roomId: roomId, username: currentUser,
-            noteTitle: document.getElementById('noteTitle').value,
-            content: document.getElementById('noteContent').value
-        });
-    });
-
-    document.getElementById('taskForm').addEventListener('submit', (e) => {
-        e.preventDefault();
-        enviarPeticion('/api/rooms/tasks', {
-            roomId: roomId, username: currentUser,
-            taskTitle: document.getElementById('taskTitle').value,
-            content: document.getElementById('taskContent').value
-        });
-    });
-
-    async function expulsarUsuario() {
-        const userToRemove = document.getElementById('userToRemove').value;
-        const res = await fetch('/api/rooms/remove-participant', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ roomId: roomId, adminName: currentUser, usernameToRemove: userToRemove })
-        });
-        if(res.ok) {
-            alert("Usuario expulsado.");
-            window.location.reload(); // Recarga la vista para actualizar la lista de miembros de la BD
-        } else {
-            alert(await res.text());
-        }
-    }
-
-    async function disolverSala() {
-        if(confirm("¿Estás seguro de eliminar esta sala? Esta acción no se puede deshacer.")) {
-            const res = await fetch(`/api/rooms/${roomId}`, {
-                method: 'DELETE',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ adminName: currentUser })
-            });
-            if(res.ok) window.location.href = "/";
-            else alert("No tienes permisos para disolver la sala.");
-        }
-    }
-</script>
-</body>
-</html>
+</body> </html>

@@ -1,13 +1,42 @@
 package com.Ntm.entity;
+import jakarta.persistence.*;
+
 import java.time.LocalDateTime;
 
+@Entity
+@Table(name = "note")
 public class Note {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "room_master_key", nullable = false)
+    private String roomMasterKey;
+
+    @Column(nullable = false, length = 200)
     private String title;
+
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String content;
-    private final LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
+
+    @Column(name = "created_by", nullable = false)
     private String createdBy;
+
+    @Column(name = "created_at")
+    private LocalDateTime createdAt;
+
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
+    @Column(nullable = false)
     private boolean active = true;
+
+    @ManyToOne
+    @JoinColumn(name = "calendar_id")
+    private Calendar calendar;
+
+    public Note() {}
 
     public Note(String title, String content, String createdBy) {
         this.title = title;
@@ -26,6 +55,10 @@ public class Note {
     public void delete() {
         this.active = false;
     }
+
+    public String getRoomMasterKey() { return roomMasterKey; }
+
+    public void setRoomMasterKey(String roomMasterKey) { this.roomMasterKey = roomMasterKey; }
 
     public String getTitle() {
         return title;
@@ -70,4 +103,8 @@ public class Note {
     public void setActive(boolean active) {
         this.active = active;
     }
+
+    public Calendar getCalendar() { return calendar; }
+
+    public void setCalendar(Calendar calendar) { this.calendar = calendar; }
 }
