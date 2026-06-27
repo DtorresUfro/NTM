@@ -5,44 +5,75 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "calendars")
+@Table(name = "calendar")
 public class Calendar {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @OneToMany(mappedBy = "calendar", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<Task> tareas = new ArrayList<>();
+    @Column(name = "google_calendar_id")
+    private String googleCalendarId;
 
-    @OneToMany(mappedBy = "calendar", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<Note> notas = new ArrayList<>();
+    private String name;
+
+    @OneToMany(mappedBy = "calendar", cascade = CascadeType.ALL)
+    private List<Task> tasks =
+            new ArrayList<>();
+
+    @OneToMany(mappedBy = "calendar", cascade = CascadeType.ALL)
+    private List<Note> notes =
+            new ArrayList<>();
+
 
     public Calendar() {}
 
-    public void addNote(Note nota) {
-        notas.add(nota);
-        nota.setCalendar(this);
+
+    public Calendar(String name, String googleCalendarId) {
+        this.name = name;
+        this.googleCalendarId =
+                googleCalendarId;
     }
 
-    public void addTask(Task tarea) {
-        tareas.add(tarea);
-        tarea.setCalendar(this);
+    public Long getId() {return id;}
+
+    public void setId(Long id) {this.id = id;}
+
+    public String getGoogleCalendarId() {
+        return googleCalendarId;
     }
 
-    public List<Task> getTasks() {
-        return this.tareas;
+
+    public void setGoogleCalendarId(String googleCalendarId) {
+        this.googleCalendarId =
+                googleCalendarId;
     }
 
-    public List<Note> getNotes() {
-        return this.notas;
+
+    public String getName() {return name;}
+
+    public void setName(String name) {
+        this.name = name;
     }
 
-    public Long getId() {
-        return id;
+
+    public List<Task> getTasks() {return tasks;}
+
+
+    public void setTasks(List<Task> tasks) {this.tasks = tasks;
     }
 
-    public void setId(Long id) {
-        this.id = id;
+    public List<Note> getNotes() {return notes;}
+
+    public void setNotes(List<Note> notes) {this.notes = notes;}
+
+    public void addTask(Task task) {
+        tasks.add(task);
+        task.setCalendar(this);
+    }
+
+    public void addNote(Note note) {
+        notes.add(note);
+        note.setCalendar(this);
     }
 }

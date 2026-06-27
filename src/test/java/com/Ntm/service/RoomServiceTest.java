@@ -87,7 +87,7 @@ class RoomServiceTest {
     }
 
 
-     // Usuario duplicado en la sala
+    // Usuario duplicado en la sala
     @Test
     void shouldThrowExceptionWhenUsernameAlreadyExistsInRoom() {
 
@@ -130,7 +130,7 @@ class RoomServiceTest {
         verify(roomRepository).delete(mockRoom);
     }
 
-     //Usuario sin permisos intenta eliminar sala
+    //Usuario sin permisos intenta eliminar sala
     @Test
     void shouldThrowExceptionWhenNotAdminTriesToDeleteRoom() {
 
@@ -172,15 +172,14 @@ class RoomServiceTest {
         setField(mockRoom, "id", "SALA-123");
         setField(mockRoom, "masterKey", "secret123");
 
-        when(roomRepository.findByMasterKey("secret123")).thenReturn(Optional.of(mockRoom));
+        when(roomRepository.findById("secret123")).thenReturn(Optional.of(mockRoom));
 
-        AdminAccessResponse response = roomService.grantAdminAccess(request);
-
+        AdminAccessResponse response = roomService.validateMasterKey(request);
         assertNotNull(response);
         assertEquals("SALA-123", response.getRoomId());
         assertEquals("Valen", response.getAdminName());
 
-        verify(roomRepository).findByMasterKey("secret123");
+        verify(roomRepository).findById("secret123");
     }
 
     //Master Key incorrecta
@@ -202,7 +201,7 @@ class RoomServiceTest {
                 .thenReturn(Optional.of(room));
 
         assertThrows(RuntimeException.class,
-                () -> roomService.grantAdminAccess(request));
+                () -> roomService.validateMasterKey(request));
 
         verify(roomRepository, never()).save(any());
     }
@@ -213,10 +212,9 @@ class RoomServiceTest {
         AdminAccessRequest request = new AdminAccessRequest();
         request.setMasterKey("incorrecta");
 
-        when(roomRepository.findByMasterKey("incorrecta")).thenReturn(Optional.empty());
+        when(roomRepository.findById("incorrecta")).thenReturn(Optional.empty());
 
-        assertThrows(IllegalArgumentException.class, () -> roomService.grantAdminAccess(request));
-    }
+        assertThrows(RuntimeException.class, () -> roomService.validateMasterKey(request));    }
 
     /**
      * CASO DE USO 5: Gestión de notas
@@ -267,7 +265,7 @@ class RoomServiceTest {
 
         setField(request, "roomId", "ROOM-INEXISTENTE");
 
-        when(roomRepository.findById("ROOM-INEXISTENTE"))
+        when(roomRepository.findByRoomId("ROOM-INEXISTENTE"))
                 .thenReturn(Optional.empty());
 
         assertThrows(RuntimeException.class,

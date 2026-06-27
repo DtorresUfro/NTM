@@ -1,5 +1,6 @@
 package com.Ntm;
 
+import com.Ntm.entity.Notification;
 import org.junit.jupiter.api.Test;
 import java.lang.reflect.Field;
 import java.util.Date;
@@ -13,10 +14,8 @@ class NotificationTest {
 
     @Test
     void shouldCreateNotification() throws Exception {
-        Date date = new Date();
-
         Notification notification = new Notification(
-                "Nueva tarea creada", false, date);
+                "ROOM-123", "Valen", "Nueva tarea creada");
 
         Field messageField = Notification.class.getDeclaredField("message");
 
@@ -28,11 +27,11 @@ class NotificationTest {
     @Test
     void shouldMarkNotificationAsRead() throws Exception {
         Notification notification = new Notification(
-                "Nueva tarea creada", false, new Date());
+                "ROOM-123", "Valen", "Nueva tarea creada");
 
         notification.markAsRead();
 
-        Field readField = Notification.class.getDeclaredField("read");
+        Field readField = Notification.class.getDeclaredField("readStatus");
 
         readField.setAccessible(true);
 
@@ -42,9 +41,9 @@ class NotificationTest {
     @Test
     void shouldInitializeCreationDate() throws Exception {
         Notification notification = new Notification(
-                "Mensaje", false, new Date());
+                "ROOM-123", "Valen", "Mensaje");
 
-        Field createdAtField = Notification.class.getDeclaredField("createdAd");
+        Field createdAtField = Notification.class.getDeclaredField("createdAt");
 
         createdAtField.setAccessible(true);
 

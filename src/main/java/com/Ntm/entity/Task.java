@@ -1,4 +1,5 @@
 package com.Ntm.entity;
+
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import java.util.Date;
@@ -47,30 +48,63 @@ public class Task {
     private Calendar calendar;
 
 
-    public Task() {}
+    public Task() {
+    }
+
+    public Task(String title, String description, Date startDate, Date dueDate, String createdBy) {
+
+        this.title = title;
+        this.description = description;
+        this.startDate = startDate;
+        this.dueDate = dueDate;
+        this.createdBy = createdBy;
+
+        this.createdAt = new Date();
+        this.completed = false;
+        this.active = true;
+
+    }
 
     public Task(String title, String description, Date dueDate, String createdBy, Date createdAt, boolean completed) {
         this.title = title;
         this.description = description;
+        this.startDate = createdAt;
         this.dueDate = dueDate;
         this.createdBy = createdBy;
         this.createdAt = createdAt;
         this.completed = completed;
+        this.active = true;
     }
 
-    public void edit(String title, String description, Date dueDate){
+    public void edit(String title, String description, Date dueDate) {
+        this.title = title;
+        this.description = description;
+        this.dueDate = dueDate;
     }
 
-    public void complete(){
+    public void complete() {
         this.completed = true;
     }
 
 
-    public boolean isOverdue(){
-        return false;
+    public boolean isOverdue() {
+
+        if (completed) {
+            return false;
+        }
+
+
+        if (dueDate == null) {
+            return false;
+        }
+
+
+        return dueDate.before(new Date());
+
     }
 
-    public void delete(){
+    public void delete() {
+        this.active = false;
     }
 
     public Long getId() {
@@ -137,9 +171,13 @@ public class Task {
         this.createdAt = createdAt;
     }
 
-    public String getGoogleEventId() { return googleEventId; }
+    public String getGoogleEventId() {
+        return googleEventId;
+    }
 
-    public void setGoogleEventId(String googleEventId) { this.googleEventId = googleEventId; }
+    public void setGoogleEventId(String googleEventId) {
+        this.googleEventId = googleEventId;
+    }
 
     public boolean isCompleted() {
         return completed;

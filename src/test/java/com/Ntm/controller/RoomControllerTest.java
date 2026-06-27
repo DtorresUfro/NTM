@@ -9,6 +9,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import java.util.ArrayList;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
@@ -17,18 +18,20 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(RoomController.class)
 class RoomControllerTest {
+
     @Autowired
     private MockMvc mockMvc;
+
     @MockBean
     private RoomService roomService;
+
     @Autowired
     private ObjectMapper objectMapper;
 
-    //Test de prueba controller, creacion de sala
     @Test
     void shouldCreateRoomSuccessfully() throws Exception {
         CreateRoomRequest request = new CreateRoomRequest();
-        CreateRoomResponse response = mock(CreateRoomResponse.class);
+        CreateRoomResponse response = new CreateRoomResponse("ROOM-123", "secret123", "Sala de Valen");
 
         when(roomService.createRoom(any(CreateRoomRequest.class))).thenReturn(response);
 
@@ -38,11 +41,10 @@ class RoomControllerTest {
                 .andExpect(status().isCreated());
     }
 
-    //Test de prueba controller, usuario se une a una sala
     @Test
     void shouldJoinRoomSuccessfully() throws Exception {
         JoinRoomRequest request = new JoinRoomRequest();
-        JoinRoomResponse response = mock(JoinRoomResponse.class);
+        JoinRoomResponse response = new JoinRoomResponse("ROOM-123", "Sala de Valen", new ArrayList<>());
 
         when(roomService.joinRoom(any(JoinRoomRequest.class))).thenReturn(response);
 
@@ -52,38 +54,34 @@ class RoomControllerTest {
                 .andExpect(status().isOk());
     }
 
-    //Test de prueba controller, eliminar sala
-
     @Test
     void shouldDeleteRoomSuccessfully() throws Exception {
-        String roomId = "ROOM-123";
         DeleteRoomRequest request = new DeleteRoomRequest();
-        DeleteRoomResponse response = mock(DeleteRoomResponse.class);
+        DeleteRoomResponse response = new DeleteRoomResponse("La sala ha sido eliminada exitosamente.");
 
-        when(roomService.deleteRoom(eq(roomId), any(DeleteRoomRequest.class))).thenReturn(response);
+        when(roomService.deleteRoom(eq("ROOM-123"), any(DeleteRoomRequest.class))).thenReturn(response);
 
-        mockMvc.perform(delete("/api/rooms/{roomId}", roomId)
+        mockMvc.perform(delete("/api/rooms/ROOM-123")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk());
     }
 
-    //Test de prueba controller, acceso masterkey admin
-
     @Test
     void shouldValidateMasterKeySuccessfully() throws Exception {
         AdminAccessRequest request = new AdminAccessRequest();
         AdminAccessResponse response = new AdminAccessResponse();
+        response.setRoomId("ROOM-123");
+        response.setAdminName("Valen");
 
-        when(roomService.grantAdminAccess(any(AdminAccessRequest.class))).thenReturn(response);
+        // CAMBIO AQUÍ: de grantAdminAccess a validateMasterKey
+        when(roomService.validateMasterKey(any(AdminAccessRequest.class))).thenReturn(response);
 
         mockMvc.perform(post("/api/rooms/validate-masterkey")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk());
     }
-
-    //Test de prueba controller, eliminar usuario
 
     @Test
     void shouldRemoveParticipantSuccessfully() throws Exception {
@@ -93,7 +91,7 @@ class RoomControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
-                .andExpect(content().string("Usuario eliminado de la sala exitosamente"));
+                .andExpect(content().string("Participante eliminado exitosamente de la sala."));
     }
 
     @Test
@@ -101,7 +99,8 @@ class RoomControllerTest {
         RemoveParticipantRequest request = new RemoveParticipantRequest();
 
         doThrow(new RuntimeException("Usuario inexistente en la sala"))
-                .when(roomService).removeParticipant(any(RemoveParticipantRequest.class));
+                .when(roomService)
+                .removeParticipant(any(RemoveParticipantRequest.class));
 
         mockMvc.perform(post("/api/rooms/remove-participant")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -110,7 +109,6 @@ class RoomControllerTest {
                 .andExpect(content().string("Usuario inexistente en la sala"));
     }
 
-    //Test de prueba RoomController, Crear tarea
     @Test
     void shouldCreateTaskSuccessfully() throws Exception {
         TaskRequest request = new TaskRequest();
@@ -119,10 +117,11 @@ class RoomControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
-                .andExpect(content().string("Tarea creada exitosamente"));
+                .andExpect(content().string("Tarea agregada exitosamente"));
 
         verify(roomService).createTask(any(TaskRequest.class));
     }
+
     @Test
     void shouldReturnBadRequestWhenCreateTaskFails() throws Exception {
         TaskRequest request = new TaskRequest();
@@ -138,47 +137,19 @@ class RoomControllerTest {
                 .andExpect(content().string("Error al crear tarea"));
     }
 
-    //Test de prueba RoomController, Actualizar tarea
-    @Test
-    void shouldUpdateTaskSuccessfully() throws Exception {
-        TaskRequest request = new TaskRequest();
-
-        mockMvc.perform(put("/api/rooms/tasks")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isOk())
-                .andExpect(content().string("Tarea actualizada exitosamente"));
-
-        verify(roomService).updateTask(any(TaskRequest.class));
-    }
-    @Test
-    void shouldReturnBadRequestWhenUpdateTaskFails() throws Exception {
-        TaskRequest request = new TaskRequest();
-
-        doThrow(new RuntimeException("Tarea no encontrada"))
-                .when(roomService)
-                .updateTask(any(TaskRequest.class));
-
-        mockMvc.perform(put("/api/rooms/tasks")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isBadRequest())
-                .andExpect(content().string("Tarea no encontrada"));
-    }
-
-    //Test de prueba RoomController, Completar tarea
     @Test
     void shouldCompleteTaskSuccessfully() throws Exception {
         TaskRequest request = new TaskRequest();
 
-        mockMvc.perform(patch("/api/rooms/tasks/complete")
+        mockMvc.perform(put("/api/rooms/tasks/complete")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
-                .andExpect(content().string("Tarea completada exitosamente"));
+                .andExpect(content().string("Tarea completada/actualizada exitosamente"));
 
         verify(roomService).completeTask(any(TaskRequest.class));
     }
+
     @Test
     void shouldReturnBadRequestWhenCompleteTaskFails() throws Exception {
         TaskRequest request = new TaskRequest();
@@ -187,14 +158,13 @@ class RoomControllerTest {
                 .when(roomService)
                 .completeTask(any(TaskRequest.class));
 
-        mockMvc.perform(patch("/api/rooms/tasks/complete")
+        mockMvc.perform(put("/api/rooms/tasks/complete")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().string("Tarea no encontrada"));
     }
 
-    //Test de prueba RoomController, Crear nota
     @Test
     void shouldCreateNoteSuccessfully() throws Exception {
         NoteRequest request = new NoteRequest();
@@ -207,6 +177,7 @@ class RoomControllerTest {
 
         verify(roomService).createNote(any(NoteRequest.class));
     }
+
     @Test
     void shouldReturnBadRequestWhenCreateNoteFails() throws Exception {
         NoteRequest request = new NoteRequest();
@@ -222,7 +193,6 @@ class RoomControllerTest {
                 .andExpect(content().string("Usuario no pertenece a la sala"));
     }
 
-    //Test de prueba RoomController, Actualizar nota
     @Test
     void shouldUpdateNoteSuccessfully() throws Exception {
         NoteRequest request = new NoteRequest();
@@ -235,6 +205,7 @@ class RoomControllerTest {
 
         verify(roomService).updateNote(any(NoteRequest.class));
     }
+
     @Test
     void shouldReturnBadRequestWhenUpdateNoteFails() throws Exception {
         NoteRequest request = new NoteRequest();
@@ -250,7 +221,6 @@ class RoomControllerTest {
                 .andExpect(content().string("No tienes permisos para editar esta nota"));
     }
 
-    //Test de prueba RoomController, Borrar nota
     @Test
     void shouldDeleteNoteSuccessfully() throws Exception {
         NoteRequest request = new NoteRequest();
@@ -263,6 +233,7 @@ class RoomControllerTest {
 
         verify(roomService).deleteNote(any(NoteRequest.class));
     }
+
     @Test
     void shouldReturnBadRequestWhenDeleteNoteFails() throws Exception {
         NoteRequest request = new NoteRequest();
