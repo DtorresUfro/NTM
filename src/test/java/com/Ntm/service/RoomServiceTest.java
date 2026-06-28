@@ -172,14 +172,14 @@ class RoomServiceTest {
         setField(mockRoom, "id", "SALA-123");
         setField(mockRoom, "masterKey", "secret123");
 
-        when(roomRepository.findById("secret123")).thenReturn(Optional.of(mockRoom));
+        when(roomRepository.findByMasterKey("secret123")).thenReturn(Optional.of(mockRoom));
 
         AdminAccessResponse response = roomService.validateMasterKey(request);
         assertNotNull(response);
         assertEquals("SALA-123", response.getRoomId());
         assertEquals("Valen", response.getAdminName());
 
-        verify(roomRepository).findById("secret123");
+        verify(roomRepository).findByMasterKey("secret123");
     }
 
     //Master Key incorrecta
@@ -212,7 +212,7 @@ class RoomServiceTest {
         AdminAccessRequest request = new AdminAccessRequest();
         request.setMasterKey("incorrecta");
 
-        when(roomRepository.findById("incorrecta")).thenReturn(Optional.empty());
+        when(roomRepository.findByMasterKey("incorrecta")).thenReturn(Optional.empty());
 
         assertThrows(RuntimeException.class, () -> roomService.validateMasterKey(request));    }
 
@@ -519,6 +519,32 @@ class RoomServiceTest {
 
         assertTrue(task.isCompleted());
 
+        verify(roomRepository).save(room);
+    }
+
+    //Eliminar tarea
+    @Test
+    void shouldDeleteTaskSuccessfully() {
+        Task task = new Task("Tarea 1", "Desc",
+                new Date(), "Lucas", new Date(), false);
+
+        Calendar calendar = new Calendar();
+        calendar.addTask(task);
+
+        Room room = new Room("Sala", "Valen");
+        setField(room, "id", "ROOM-123");
+        room.setCalendar(calendar);
+
+        TaskRequest request = new TaskRequest();
+        request.setRoomId("ROOM-123");
+        request.setUsername("Lucas");
+        request.setTaskTitle("Tarea 1");
+
+        when(roomRepository.findByRoomId("ROOM-123")).thenReturn(Optional.of(room));
+
+        roomService.deleteTask(request);
+
+        assertFalse(task.isActive());
         verify(roomRepository).save(room);
     }
 

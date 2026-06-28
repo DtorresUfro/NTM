@@ -109,6 +109,19 @@ class RoomControllerTest {
                 .andExpect(content().string("Usuario inexistente en la sala"));
     }
 
+
+    @Test
+    void shouldLeaveRoomSuccessfully() throws Exception {
+        RemoveParticipantRequest request = new RemoveParticipantRequest();
+
+        mockMvc.perform(post("/api/rooms/leave")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(content().string("Usuario retirado exitosamente de la sala."));
+
+        verify(roomService).leaveRoom(any(), any());
+    }
     @Test
     void shouldCreateTaskSuccessfully() throws Exception {
         TaskRequest request = new TaskRequest();
@@ -163,6 +176,32 @@ class RoomControllerTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().string("Tarea no encontrada"));
+    }
+
+    @Test
+    void shouldUpdateTaskSuccessfully() throws Exception {
+        TaskRequest request = new TaskRequest();
+
+        mockMvc.perform(put("/api/rooms/tasks")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(content().string("Tarea editada exitosamente"));
+
+        verify(roomService).updateTask(any(TaskRequest.class));
+    }
+
+    @Test
+    void shouldDeleteTaskSuccessfully() throws Exception {
+        TaskRequest request = new TaskRequest();
+
+        mockMvc.perform(delete("/api/rooms/tasks")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(content().string("Tarea eliminada exitosamente"));
+
+        verify(roomService).deleteTask(any(TaskRequest.class));
     }
 
     @Test

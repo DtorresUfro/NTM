@@ -158,6 +158,13 @@
 
         .btn-danger { background-color: #e74c3c; }
         .btn-warning { background-color: #e67e22; }
+        .btn-secondary { background-color: #6c7a89; }
+        .btn-success { background-color: #27ae60; }
+        .btn-small { padding: 7px 9px; font-size: 12px; }
+        .form-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+        .card-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+        .card-item.completed { opacity: 0.78; }
+        .card-item.completed .card-title { text-decoration: line-through; }
 
         .list-section-title {
             margin-top: 35px;
@@ -249,7 +256,7 @@
 <div class="header">
     <div><strong>Sala ID:</strong> <span th:text="${roomId}"></span></div>
     <div>
-        <span id="currentUserDisplay"></span> | <a href="/" style="color: #ff9999; text-decoration: none; font-weight: bold;">Salir</a>
+        <span id="currentUserDisplay"></span> | <a href="/" id="leaveRoomLink" style="color: #ff9999; text-decoration: none; font-weight: bold;">Salir</a>
     </div>
 </div>
 
@@ -272,20 +279,24 @@
             <div class="tab-btn active" onclick="openTab('notas', this)">Notas</div>
             <div class="tab-btn" onclick="openTab('tareas', this)">Tareas</div>
             <div class="tab-btn" onclick="openTab('calendario', this)">Calendario</div>
-            <div class="tab-btn" onclick="openTab('buzon', this)">Buzón</div>
+            <div class="tab-btn" onclick="openTab('buzon', this)">Buzon</div>
             <div class="tab-btn admin" id="adminTabBtn" onclick="openTab('admin', this)">Panel Admin</div>
         </div>
 
         <div id="notas" class="tab-content active">
-            <h3>Crear / Editar Nota</h3>
+            <h3 id="noteFormTitle">Crear Nota</h3>
             <form id="noteForm">
+                <input type="hidden" id="noteId">
                 <div class="form-group">
-                    <input type="text" id="noteTitle" placeholder="Título de la nota" required>
+                    <input type="text" id="noteTitle" placeholder="Titulo de la nota" required>
                 </div>
                 <div class="form-group">
                     <textarea id="noteContent" rows="4" placeholder="Contenido de la nota..." required></textarea>
                 </div>
-                <button type="submit" class="btn">Guardar Nota</button>
+                <div class="form-actions">
+                    <button type="submit" class="btn" id="noteSubmitBtn">Guardar Nota</button>
+                    <button type="button" class="btn btn-secondary" id="cancelNoteEditBtn" style="display:none;">Cancelar edicion</button>
+                </div>
             </form>
 
             <h3 class="list-section-title">Notas de la Sala</h3>
@@ -295,13 +306,14 @@
         </div>
 
         <div id="tareas" class="tab-content">
-            <h3>Crear Tarea</h3>
+            <h3 id="taskFormTitle">Crear Tarea</h3>
             <form id="taskForm">
+                <input type="hidden" id="taskId">
                 <div class="form-group">
-                    <input type="text" id="taskTitle" placeholder="Título de la tarea" required>
+                    <input type="text" id="taskTitle" placeholder="Titulo de la tarea" required>
                 </div>
                 <div class="form-group">
-                    <textarea id="taskContent" rows="3" placeholder="Descripción de la tarea..."></textarea>
+                    <textarea id="taskContent" rows="3" placeholder="Descripcion de la tarea..."></textarea>
                 </div>
 
                 <div class="form-row">
@@ -310,11 +322,14 @@
                         <input type="datetime-local" id="taskStartDate" required>
                     </div>
                     <div class="form-group">
-                        <label for="taskDueDate">Fecha Límite (Término)</label>
+                        <label for="taskDueDate">Fecha Limite (Termino)</label>
                         <input type="datetime-local" id="taskDueDate" required>
                     </div>
                 </div>
-                <button type="submit" class="btn">Asignar Tarea</button>
+                <div class="form-actions">
+                    <button type="submit" class="btn" id="taskSubmitBtn">Asignar Tarea</button>
+                    <button type="button" class="btn btn-secondary" id="cancelTaskEditBtn" style="display:none;">Cancelar edicion</button>
+                </div>
             </form>
 
             <h3 class="list-section-title">Listado de Tareas</h3>
@@ -331,8 +346,11 @@
         </div>
 
         <div id="buzon" class="tab-content">
-            <h3>Buzón de Notificaciones</h3>
+            <h3>Buzon de Notificaciones</h3>
             <p>Alertas del sistema calculadas en tiempo real para el seguimiento de entregas.</p>
+            <div class="form-actions" style="margin-bottom: 12px;">
+                <button type="button" class="btn btn-secondary btn-small" onclick="limpiarAlertas()">Marcar todas como leidas</button>
+            </div>
             <div id="listaAlertasContainer">
             </div>
         </div>
@@ -345,7 +363,7 @@
                 <button onclick="expulsarUsuario()" class="btn btn-warning">Expulsar</button>
             </div>
             <div style="border: 1px solid #e74c3c; padding: 15px; border-radius: 6px; background: #fff0f0;">
-                <p>Eliminar la sala borrará todas las notas y tareas permanentemente.</p>
+                <p>Eliminar la sala borrara todas las notas y tareas permanentemente.</p>
                 <button onclick="disolverSala()" class="btn btn-danger">Disolver Sala</button>
             </div>
         </div>
@@ -357,18 +375,36 @@
     const currentUser = sessionStorage.getItem('currentUser') || 'Invitado';
     const isAdmin = sessionStorage.getItem('isAdmin') === 'true';
     let calendarInstance = null;
-
     let cacheTasks = [];
+    let cacheNotes = [];
 
     document.getElementById('currentUserDisplay').innerText = 'Usuario: ' + currentUser;
 
     if (isAdmin) {
         document.getElementById('adminTabBtn').style.display = 'block';
     }
+    document.getElementById('leaveRoomLink').addEventListener('click', async (event) => {
+        event.preventDefault();
+        await salirDeSala();
+    });
+
+    async function salirDeSala() {
+        if (!isAdmin) {
+            await enviarJson('/api/rooms/leave', 'POST', {
+                roomId: roomId,
+                usernameToRemove: currentUser
+            }, null);
+        }
+        sessionStorage.removeItem('currentUser');
+        sessionStorage.removeItem('isAdmin');
+        window.location.href = '/';
+    }
 
     window.addEventListener('DOMContentLoaded', () => {
         obtenerNotas();
         obtenerTareas();
+        document.getElementById('cancelNoteEditBtn').addEventListener('click', resetNoteForm);
+        document.getElementById('cancelTaskEditBtn').addEventListener('click', resetTaskForm);
     });
 
     function openTab(tabId, clickedButton) {
@@ -394,20 +430,29 @@
         try {
             const res = await fetch(`/api/rooms/${roomId}/notes`);
             if (!res.ok) throw new Error();
-            const notes = await res.json();
+            cacheNotes = await res.json();
 
-            if(notes.length === 0) {
-                container.innerHTML = '<p style="color: #7a92a8; grid-column: 1/-1;">No hay notas creadas en esta sala aún.</p>';
+            if(cacheNotes.length === 0) {
+                container.innerHTML = '<p style="color: #7a92a8; grid-column: 1/-1;">No hay notas creadas en esta sala aun.</p>';
                 return;
             }
 
-            container.innerHTML = notes.map(note => `
-                <div class="card-item">
-                    <h4 class="card-title">${escapeHtml(note.title)}</h4>
-                    <p style="font-size: 14px; white-space: pre-wrap; margin: 0;">${escapeHtml(note.content)}</p>
-                    <div class="card-meta">Por: <b>${escapeHtml(note.createdBy)}</b></div>
-                </div>
-            `).join('');
+            container.innerHTML = cacheNotes.map(note => {
+                const canManage = isAdmin || equalsIgnoreCase(note.createdBy, currentUser);
+                return `
+                    <div class="card-item">
+                        <h4 class="card-title">${escapeHtml(note.title)}</h4>
+                        <p style="font-size: 14px; white-space: pre-wrap; margin: 0;">${escapeHtml(note.content)}</p>
+                        <div class="card-meta">Por: <b>${escapeHtml(note.createdBy)}</b></div>
+                        ${canManage ? `
+                            <div class="card-actions">
+                                <button type="button" class="btn btn-warning btn-small" onclick="editarNota(${note.id})">Editar</button>
+                                <button type="button" class="btn btn-danger btn-small" onclick="eliminarNota(${note.id})">Eliminar</button>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
         } catch (e) {
             container.innerHTML = '<p style="color: #e74c3c;">Error al sincronizar el listado de notas.</p>';
         }
@@ -421,7 +466,7 @@
             cacheTasks = await res.json();
 
             if(cacheTasks.length === 0) {
-                container.innerHTML = '<p style="color: #7a92a8; grid-column: 1/-1;">No hay tareas asignadas en esta sala aún.</p>';
+                container.innerHTML = '<p style="color: #7a92a8; grid-column: 1/-1;">No hay tareas asignadas en esta sala aun.</p>';
                 return;
             }
 
@@ -430,6 +475,7 @@
             container.innerHTML = cacheTasks.map(task => {
                 let estadoBadge = '';
                 const fechaLimite = new Date(task.dueDate);
+                const canManage = isAdmin || equalsIgnoreCase(task.createdBy, currentUser);
 
                 if (task.completed) {
                     estadoBadge = '<span class="badge badge-success">Completada</span>';
@@ -440,17 +486,24 @@
                 }
 
                 return `
-                    <div class="card-item">
-                        <div style="display: flex; justify-content: space-between; align-items: start;">
+                    <div class="card-item ${task.completed ? 'completed' : ''}">
+                        <div style="display: flex; justify-content: space-between; align-items: start; gap: 8px;">
                             <h4 class="card-title" style="margin-bottom: 2px;">${escapeHtml(task.title)}</h4>
                             ${estadoBadge}
                         </div>
-                        <p style="font-size: 14px; margin: 5px 0;">${escapeHtml(task.description || 'Sin descripción')}</p>
+                        <p style="font-size: 14px; margin: 5px 0;">${escapeHtml(task.description || 'Sin descripcion')}</p>
                         <div style="font-size: 12px; background: #eef4fa; padding: 6px; border-radius: 4px; margin-top:8px;">
                             <b>Inicio:</b> ${formatearFecha(task.startDate)} <br>
-                            <b>Término:</b> ${formatearFecha(task.dueDate)}
+                            <b>Termino:</b> ${formatearFecha(task.dueDate)}
                         </div>
                         <div class="card-meta">Asignado por: <b>${escapeHtml(task.createdBy)}</b></div>
+                        <div class="card-actions">
+                            <button type="button" class="btn btn-success btn-small" onclick="toggleTarea(${task.id})">${task.completed ? 'Marcar pendiente' : 'Completar'}</button>
+                            ${canManage ? `
+                                <button type="button" class="btn btn-warning btn-small" onclick="editarTarea(${task.id})">Editar</button>
+                                <button type="button" class="btn btn-danger btn-small" onclick="eliminarTarea(${task.id})">Eliminar</button>
+                            ` : ''}
+                        </div>
                     </div>
                 `;
             }).join('');
@@ -459,87 +512,232 @@
         }
     }
 
-    function procesarBuzonAlertas() {
+    async function procesarBuzonAlertas() {
+        await obtenerTareas();
         const container = document.getElementById('listaAlertasContainer');
         const ahora = new Date();
-
-        const atrasadas = cacheTasks.filter(task => !task.completed && new Date(task.dueDate) < ahora);
+        const leidas = getAlertasLeidas();
+        const atrasadas = cacheTasks.filter(task => !task.completed && new Date(task.dueDate) < ahora && !leidas.includes(String(task.id)));
 
         if (atrasadas.length === 0) {
             container.innerHTML = `
                 <div class="buzon-msg">
-                    <strong>Alerta del sistema:</strong> ¡Excelente trabajo! No se registran tareas fuera de plazo o atrasadas al día de hoy.
+                    <strong>Alerta del sistema:</strong> No hay notificaciones pendientes por tareas atrasadas.
                 </div>`;
             return;
         }
 
         container.innerHTML = atrasadas.map(task => `
             <div class="buzon-msg danger">
-                <strong>Tarea Atrasada Crítica:</strong> La tarea "<u>${escapeHtml(task.title)}</u>" superó el límite establecido de entrega (${formatearFecha(task.dueDate)}). Requiere atención inmediata.
+                <strong>Tarea atrasada:</strong> La tarea "<u>${escapeHtml(task.title)}</u>" supero el limite de entrega (${formatearFecha(task.dueDate)}).
+                <div class="card-actions">
+                    <button type="button" class="btn btn-secondary btn-small" onclick="marcarAlertaLeida(${task.id})">Marcar leida</button>
+                </div>
             </div>
         `).join('');
     }
 
-    async function enviarPeticion(url, data) {
+    function getAlertasLeidas() {
+        const raw = localStorage.getItem(getAlertasLeidasKey());
+        if (!raw) return [];
+        try {
+            return JSON.parse(raw);
+        } catch (e) {
+            return [];
+        }
+    }
+
+    function getAlertasLeidasKey() {
+        return `alertasLeidas:${roomId}:${currentUser}`;
+    }
+
+    function marcarAlertaLeida(taskId) {
+        const leidas = getAlertasLeidas();
+        const id = String(taskId);
+        if (!leidas.includes(id)) {
+            leidas.push(id);
+            localStorage.setItem(getAlertasLeidasKey(), JSON.stringify(leidas));
+        }
+        procesarBuzonAlertas();
+    }
+
+
+    function limpiarAlertas() {
+        const idsAtrasadas = cacheTasks
+            .filter(task => !task.completed && new Date(task.dueDate) < new Date())
+            .map(task => String(task.id));
+        localStorage.setItem(getAlertasLeidasKey(), JSON.stringify(idsAtrasadas));
+        procesarBuzonAlertas();
+    }
+    async function enviarJson(url, method, data, successMessage) {
         try {
             const res = await fetch(url, {
-                method: 'POST',
+                method: method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
             });
             if (res.ok) {
-                alert('¡Guardado correctamente!');
+                if (successMessage) alert(successMessage);
                 return true;
             }
             const errorText = await res.text();
-            alert(errorText || 'Ocurrió un error al guardar.');
+            alert(errorText || 'Ocurrio un error al guardar.');
             return false;
         } catch (e) {
-            alert('Error de conexión.');
+            alert('Error de conexion.');
             return false;
         }
     }
 
     document.getElementById('noteForm').addEventListener('submit', async (e) => {
         e.preventDefault();
-        const saved = await enviarPeticion('/api/rooms/notes', {
+        const noteId = document.getElementById('noteId').value;
+        const isEditing = noteId !== '';
+        const saved = await enviarJson('/api/rooms/notes', isEditing ? 'PUT' : 'POST', {
+            id: isEditing ? Number(noteId) : null,
             roomId: roomId,
             username: currentUser,
             noteTitle: document.getElementById('noteTitle').value,
             content: document.getElementById('noteContent').value
-        });
+        }, isEditing ? 'Nota editada correctamente.' : 'Nota creada correctamente.');
         if (saved) {
-            document.getElementById('noteForm').reset();
-            obtenerNotas();
+            resetNoteForm();
+            await refreshNoteViews();
         }
     });
 
     document.getElementById('taskForm').addEventListener('submit', async (e) => {
         e.preventDefault();
+        const taskId = document.getElementById('taskId').value;
+        const isEditing = taskId !== '';
         const startDateValue = document.getElementById('taskStartDate').value;
         const dueDateValue = document.getElementById('taskDueDate').value;
 
         if (new Date(startDateValue) >= new Date(dueDateValue)) {
-            alert('Error: La fecha de inicio no puede ser mayor o igual a la fecha de término.');
+            alert('Error: La fecha de inicio no puede ser mayor o igual a la fecha de termino.');
             return;
         }
 
-        const saved = await enviarPeticion('/api/rooms/tasks', {
+        const saved = await enviarJson('/api/rooms/tasks', isEditing ? 'PUT' : 'POST', {
+            id: isEditing ? Number(taskId) : null,
             roomId: roomId,
             username: currentUser,
             taskTitle: document.getElementById('taskTitle').value,
             description: document.getElementById('taskContent').value,
             startDate: new Date(startDateValue).toISOString(),
             dueDate: new Date(dueDateValue).toISOString()
-        });
+        }, isEditing ? 'Tarea editada correctamente.' : 'Tarea creada correctamente.');
         if (saved) {
-            document.getElementById('taskForm').reset();
-            await obtenerTareas();
-            if (calendarInstance) {
-                await cargarCalendario();
-            }
+            resetTaskForm();
+            await refreshTaskViews();
         }
     });
+
+    function editarNota(id) {
+        const note = cacheNotes.find(item => item.id === id);
+        if (!note) return;
+        document.getElementById('noteId').value = note.id;
+        document.getElementById('noteTitle').value = note.title;
+        document.getElementById('noteContent').value = note.content;
+        document.getElementById('noteFormTitle').innerText = 'Editar Nota';
+        document.getElementById('noteSubmitBtn').innerText = 'Actualizar Nota';
+        document.getElementById('cancelNoteEditBtn').style.display = 'inline-block';
+        document.getElementById('noteTitle').focus();
+    }
+
+    async function eliminarNota(id) {
+        const note = cacheNotes.find(item => item.id === id);
+        if (!note) return;
+        if (!confirm(`Eliminar la nota "${note.title}"?`)) return;
+        const deleted = await enviarJson('/api/rooms/notes', 'DELETE', {
+            id: id,
+            roomId: roomId,
+            username: currentUser,
+            noteTitle: note.title
+        }, 'Nota eliminada correctamente.');
+        if (deleted) {
+            resetNoteForm();
+            await refreshNoteViews();
+        }
+    }
+
+    function resetNoteForm() {
+        document.getElementById('noteForm').reset();
+        document.getElementById('noteId').value = '';
+        document.getElementById('noteFormTitle').innerText = 'Crear Nota';
+        document.getElementById('noteSubmitBtn').innerText = 'Guardar Nota';
+        document.getElementById('cancelNoteEditBtn').style.display = 'none';
+    }
+
+    function editarTarea(id) {
+        const task = cacheTasks.find(item => item.id === id);
+        if (!task) return;
+        document.getElementById('taskId').value = task.id;
+        document.getElementById('taskTitle').value = task.title;
+        document.getElementById('taskContent').value = task.description || '';
+        document.getElementById('taskStartDate').value = toDatetimeLocalValue(task.startDate);
+        document.getElementById('taskDueDate').value = toDatetimeLocalValue(task.dueDate);
+        document.getElementById('taskFormTitle').innerText = 'Editar Tarea';
+        document.getElementById('taskSubmitBtn').innerText = 'Actualizar Tarea';
+        document.getElementById('cancelTaskEditBtn').style.display = 'inline-block';
+        document.getElementById('taskTitle').focus();
+    }
+
+    async function eliminarTarea(id) {
+        const task = cacheTasks.find(item => item.id === id);
+        if (!task) return;
+        if (!confirm(`Eliminar la tarea "${task.title}"?`)) return;
+        const deleted = await enviarJson('/api/rooms/tasks', 'DELETE', {
+            id: id,
+            roomId: roomId,
+            username: currentUser,
+            taskTitle: task.title
+        }, 'Tarea eliminada correctamente.');
+        if (deleted) {
+            resetTaskForm();
+            await refreshTaskViews();
+        }
+    }
+
+    async function toggleTarea(id) {
+        const task = cacheTasks.find(item => item.id === id);
+        if (!task) return;
+        const updated = await enviarJson('/api/rooms/tasks/complete', 'PUT', {
+            id: id,
+            roomId: roomId,
+            username: currentUser,
+            taskTitle: task.title
+        }, null);
+        if (updated) {
+            await refreshTaskViews();
+        }
+    }
+
+    function resetTaskForm() {
+        document.getElementById('taskForm').reset();
+        document.getElementById('taskId').value = '';
+        document.getElementById('taskFormTitle').innerText = 'Crear Tarea';
+        document.getElementById('taskSubmitBtn').innerText = 'Asignar Tarea';
+        document.getElementById('cancelTaskEditBtn').style.display = 'none';
+    }
+
+    async function refreshNoteViews() {
+        await obtenerNotas();
+        if (calendarInstance) {
+            await cargarCalendario();
+        }
+    }
+
+    async function refreshTaskViews() {
+        await obtenerTareas();
+        if (calendarInstance) {
+            await cargarCalendario();
+        }
+        const buzonTab = document.getElementById('buzon');
+        if (buzonTab && buzonTab.classList.contains('active')) {
+            await procesarBuzonAlertas();
+        }
+    }
 
     async function expulsarUsuario() {
         const userToRemove = document.getElementById('userToRemove').value;
@@ -560,12 +758,12 @@
                 alert(await res.text());
             }
         } catch (e) {
-            alert('Error de conexión.');
+            alert('Error de conexion.');
         }
     }
 
     async function disolverSala() {
-        if (!confirm('¿Estás seguro de eliminar esta sala? Esta acción no se puede deshacer.')) return;
+        if (!confirm('Estas seguro de eliminar esta sala? Esta accion no se puede deshacer.')) return;
         try {
             const res = await fetch(`/api/rooms/${roomId}`, {
                 method: 'DELETE',
@@ -578,7 +776,7 @@
                 alert('No tienes permisos para disolver la sala.');
             }
         } catch (e) {
-            alert('Error de conexión.');
+            alert('Error de conexion.');
         }
     }
 
@@ -586,7 +784,7 @@
         return tasks
             .filter(task => task.dueDate)
             .map(task => ({
-                id: task.id,
+                id: `task-${task.id}`,
                 title: task.title,
                 start: task.startDate || task.createdAt,
                 end: task.dueDate,
@@ -594,25 +792,48 @@
                 borderColor: task.completed ? '#27ae60' : (new Date(task.dueDate) < new Date() ? '#c0392b' : '#3498db'),
                 textColor: '#ffffff',
                 extendedProps: {
-                    description: task.description || 'Sin descripción',
+                    type: 'task',
+                    description: task.description || 'Sin descripcion',
                     createdBy: task.createdBy || 'Desconocido',
                     completed: task.completed
                 }
             }));
     }
 
+    function mapNotesToCalendarEvents(notes) {
+        return notes.map(note => ({
+            id: `note-${note.id}`,
+            title: `Nota: ${note.title}`,
+            start: note.updatedAt || note.createdAt || new Date().toISOString(),
+            backgroundColor: '#8e44ad',
+            borderColor: '#6c3483',
+            textColor: '#ffffff',
+            extendedProps: {
+                type: 'note',
+                description: note.content || 'Sin contenido',
+                createdBy: note.createdBy || 'Desconocido'
+            }
+        }));
+    }
+
     async function cargarCalendario() {
         const calendarContainer = document.getElementById('calendar-container');
         if (!calendarContainer) return;
         if (typeof FullCalendar === 'undefined') {
-            calendarContainer.innerHTML = '<p class="calendar-error">No se pudo cargar FullCalendar. Revisa la conexión.</p>';
+            calendarContainer.innerHTML = '<p class="calendar-error">No se pudo cargar FullCalendar. Revisa la conexion.</p>';
             return;
         }
         try {
-            const response = await fetch(`/api/rooms/${roomId}/tasks`);
-            if (!response.ok) throw new Error();
-            const tasks = await response.json();
-            const events = mapTasksToCalendarEvents(tasks);
+            const [taskResponse, noteResponse] = await Promise.all([
+                fetch(`/api/rooms/${roomId}/tasks`),
+                fetch(`/api/rooms/${roomId}/notes`)
+            ]);
+            if (!taskResponse.ok || !noteResponse.ok) throw new Error();
+            const tasks = await taskResponse.json();
+            const notes = await noteResponse.json();
+            cacheTasks = tasks;
+            cacheNotes = notes;
+            const events = mapTasksToCalendarEvents(tasks).concat(mapNotesToCalendarEvents(notes));
 
             if (!calendarInstance) {
                 calendarInstance = new FullCalendar.Calendar(calendarContainer, {
@@ -627,11 +848,22 @@
                     height: 500,
                     firstDay: 1,
                     eventClick: function(info) {
-                        const task = info.event;
-                        const description = task.extendedProps.description;
-                        const createdBy = task.extendedProps.createdBy;
-                        const status = task.extendedProps.completed ? 'Completada' : (task.end < new Date() ? 'Atrasada' : 'Pendiente');
-                        alert(`${task.title}\n\nDescripción: ${description}\nAsignado por: ${createdBy}\nEstado: ${status}`);
+                        const item = info.event;
+                        const description = item.extendedProps.description;
+                        const createdBy = item.extendedProps.createdBy;
+                        if (item.extendedProps.type === 'note') {
+                            alert(`${item.title}
+
+Contenido: ${description}
+Creada por: ${createdBy}`);
+                            return;
+                        }
+                        const status = item.extendedProps.completed ? 'Completada' : (item.end < new Date() ? 'Atrasada' : 'Pendiente');
+                        alert(`${item.title}
+
+Descripcion: ${description}
+Asignado por: ${createdBy}
+Estado: ${status}`);
                     }
                 });
                 calendarInstance.render();
@@ -651,9 +883,20 @@
         return d.toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
     }
 
+    function toDatetimeLocalValue(dateStr) {
+        if (!dateStr) return '';
+        const date = new Date(dateStr);
+        const offsetDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+        return offsetDate.toISOString().slice(0, 16);
+    }
+
+    function equalsIgnoreCase(left, right) {
+        return String(left || '').toLowerCase() === String(right || '').toLowerCase();
+    }
+
     function escapeHtml(text) {
         if(!text) return '';
-        return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        return String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
     }
 </script>
 </body>

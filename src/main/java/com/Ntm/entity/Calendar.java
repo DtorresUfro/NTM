@@ -21,7 +21,7 @@ public class Calendar {
     private List<Task> tasks =
             new ArrayList<>();
 
-    @OneToMany(mappedBy = "calendar", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "calendar", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Note> notes =
             new ArrayList<>();
 
@@ -77,3 +77,4 @@ public class Calendar {
         note.setCalendar(this);
     }
 }
+

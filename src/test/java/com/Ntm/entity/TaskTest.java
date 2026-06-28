@@ -77,8 +77,9 @@ class TaskTest {
 
     @Test
     void shouldReturnFalseWhenCheckingOverdue() {
+        Date futureDate = new Date(System.currentTimeMillis() + 60_000);
         Task task = new Task("Titulo", "Descripcion",
-                new Date(), "Lucas", new Date(), false);
+                futureDate, "Lucas", new Date(), false);
 
         assertFalse(task.isOverdue());
     }

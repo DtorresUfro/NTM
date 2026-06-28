@@ -1,5 +1,6 @@
 package com.Ntm.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
@@ -43,6 +44,7 @@ public class Note {
     @Column(nullable = false)
     private boolean active = true;
 
+    @JsonIgnore
     @ManyToOne
     @JoinColumn(name = "calendar_id")
     private Calendar calendar;
@@ -121,3 +123,4 @@ public class Note {
         this.calendar = calendar;
     }
 }
+

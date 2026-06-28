@@ -56,6 +56,16 @@ public class RoomController {
         }
     }
 
+
+    @PostMapping("/leave")
+    public ResponseEntity<String> leaveRoom(@RequestBody RemoveParticipantRequest request) {
+        try {
+            roomService.leaveRoom(request.getRoomId(), request.getUsernameToRemove());
+            return ResponseEntity.ok("Usuario retirado exitosamente de la sala.");
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
     // ==========================================
     // ENDPOINTS PARA TAREAS (TASKS)
     // ==========================================
@@ -85,6 +95,26 @@ public class RoomController {
         try {
             roomService.completeTask(request);
             return ResponseEntity.ok("Tarea completada/actualizada exitosamente");
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @PutMapping("/tasks")
+    public ResponseEntity<String> updateTask(@RequestBody TaskRequest request) {
+        try {
+            roomService.updateTask(request);
+            return ResponseEntity.ok("Tarea editada exitosamente");
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @DeleteMapping("/tasks")
+    public ResponseEntity<String> deleteTask(@RequestBody TaskRequest request) {
+        try {
+            roomService.deleteTask(request);
+            return ResponseEntity.ok("Tarea eliminada exitosamente");
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
