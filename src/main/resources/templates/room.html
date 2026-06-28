@@ -7,6 +7,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.21/index.global.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.21/locales-all.global.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@stomp/stompjs@7.0.0/bundles/stomp.umd.min.js"></script>
 
     <style>
         body {
@@ -68,6 +69,15 @@
             height: 8px;
             background-color: #2ecc71;
             border-radius: 50%;
+            flex: 0 0 auto;
+        }
+
+        .user-badge.disconnected {
+            background-color: #a0a7b1;
+        }
+
+        .user-name.disconnected {
+            color: #7a8794;
         }
 
         .tabs {
@@ -377,6 +387,8 @@
     let calendarInstance = null;
     let cacheTasks = [];
     let cacheNotes = [];
+    let realtimeClient = null;
+    let salidaManualEnCurso = false;
 
     document.getElementById('currentUserDisplay').innerText = 'Usuario: ' + currentUser;
 
@@ -389,23 +401,78 @@
     });
 
     async function salirDeSala() {
-        if (!isAdmin) {
-            await enviarJson('/api/rooms/leave', 'POST', {
-                roomId: roomId,
-                usernameToRemove: currentUser
-            }, null);
-        }
+        salidaManualEnCurso = true;
+        await enviarJson('/api/rooms/leave', 'POST', {
+            roomId: roomId,
+            usernameToRemove: currentUser
+        }, null);
         sessionStorage.removeItem('currentUser');
         sessionStorage.removeItem('isAdmin');
         window.location.href = '/';
     }
 
-    window.addEventListener('DOMContentLoaded', () => {
+    window.addEventListener('pagehide', () => {
+        if (salidaManualEnCurso || !roomId || !currentUser || currentUser === 'Invitado') {
+            return;
+        }
+        const payload = JSON.stringify({ roomId: roomId, usernameToRemove: currentUser });
+        const blob = new Blob([payload], { type: 'application/json' });
+        navigator.sendBeacon('/api/rooms/leave', blob);
+    });
+
+    window.addEventListener('DOMContentLoaded', async () => {
+        await marcarUsuarioConectado();
+        obtenerMiembros();
         obtenerNotas();
         obtenerTareas();
         document.getElementById('cancelNoteEditBtn').addEventListener('click', resetNoteForm);
         document.getElementById('cancelTaskEditBtn').addEventListener('click', resetTaskForm);
+        conectarTiempoReal();
     });
+
+
+
+    function conectarTiempoReal() {
+        if (typeof StompJs === 'undefined') {
+            console.warn('STOMP no esta disponible; la sala funcionara con refresco manual.');
+            return;
+        }
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        realtimeClient = new StompJs.Client({
+            brokerURL: wsProtocol + '//' + window.location.host + '/ws',
+            reconnectDelay: 3000,
+            onConnect: () => {
+                realtimeClient.subscribe('/topic/rooms/' + roomId, async () => {
+                    await obtenerMiembros();
+                    await obtenerNotas();
+                    await obtenerTareas();
+                    if (calendarInstance) {
+                        await cargarCalendario();
+                    }
+                    const buzonTab = document.getElementById('buzon');
+                    if (buzonTab && buzonTab.classList.contains('active')) {
+                        await procesarBuzonAlertas();
+                    }
+                });
+            }
+        });
+        realtimeClient.activate();
+    }
+
+    async function marcarUsuarioConectado() {
+        if (!roomId || !currentUser || currentUser === 'Invitado') {
+            return;
+        }
+        try {
+            await fetch('/api/rooms/presence', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ roomId: roomId, usernameToRemove: currentUser })
+            });
+        } catch (e) {
+            console.warn('No se pudo actualizar la presencia del usuario.');
+        }
+    }
 
     function openTab(tabId, clickedButton) {
         document.querySelectorAll('.tab-content').forEach(tabContent => tabContent.classList.remove('active'));
@@ -422,6 +489,34 @@
             obtenerTareas();
         } else if (tabId === 'buzon') {
             procesarBuzonAlertas();
+        }
+    }
+
+
+    async function obtenerMiembros() {
+        const container = document.getElementById('listaUsuariosHtml');
+        try {
+            const res = await fetch(`/api/rooms/${roomId}/members`);
+            if (!res.ok) throw new Error();
+            const members = await res.json();
+
+            if (members.length === 0) {
+                container.innerHTML = '<li class="user-item">No hay miembros registrados</li>';
+                return;
+            }
+
+            container.innerHTML = members.map(member => {
+                const displayName = `${escapeHtml(member.username)}${member.admin ? ' (Admin)' : ''}`;
+                const statusClass = member.connected ? '' : ' disconnected';
+                return `
+                    <li class="user-item">
+                        <span class="user-badge${statusClass}"></span>
+                        <span class="user-name${statusClass}">${displayName}</span>
+                    </li>
+                `;
+            }).join('');
+        } catch (e) {
+            container.innerHTML = '<li class="user-item">No se pudo actualizar la lista de miembros</li>';
         }
     }
 

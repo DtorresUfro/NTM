@@ -11,9 +11,11 @@ import com.Ntm.dto.*;
 import com.Ntm.repository.RoomRepository;
 import com.google.api.services.calendar.model.Event;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
 import java.util.Objects;
@@ -23,6 +25,9 @@ public class RoomService {
 
     private final RoomRepository roomRepository;
     private final GoogleCalendarEventService googleCalendarService;
+
+    @Autowired(required = false)
+    private SimpMessagingTemplate messagingTemplate;
 
     @Autowired
     public RoomService(RoomRepository roomRepository, GoogleCalendarEventService googleCalendarService) {
@@ -55,13 +60,18 @@ public class RoomService {
         Room room = roomRepository.findByRoomId(request.getRoomId())
                 .orElseThrow(() -> new RoomNotFoundException("La sala no existe o el ID es incorrecto"));
 
-        if (room.getParticipants().contains(request.getUsername()) ||
-                request.getUsername().equalsIgnoreCase(room.getAdminName())) {
+        validateRequiredText(request.getUsername(), "El usuario es obligatorio");
+        String normalizedUsername = request.getUsername().trim();
+
+        if (isActiveParticipant(room, normalizedUsername) ||
+                normalizedUsername.equalsIgnoreCase(room.getAdminName())) {
             throw new IllegalArgumentException("El nombre de usuario ya está en uso en esta sala.");
         }
 
-        room.getParticipants().add(request.getUsername());
+        room.getDisconnectedParticipants().removeIf(participant -> participant.equalsIgnoreCase(normalizedUsername));
+        room.getParticipants().add(normalizedUsername);
         roomRepository.save(room);
+        publishRoomUpdate(room.getId());
 
         return new JoinRoomResponse(room.getId(), room.getName(), getRoomParticipants(room.getId()));
     }
@@ -78,7 +88,7 @@ public class RoomService {
         return new DeleteRoomResponse("La sala ha sido eliminada exitosamente.");
     }
 
-    // ==========================================
+// ==========================================
     // ACCESO DE ADMINISTRADOR (Master Key)
     // ==========================================
 
@@ -94,12 +104,18 @@ public class RoomService {
         AdminAccessResponse response = new AdminAccessResponse();
         response.setRoomId(room.getId());
         response.setAdminName(room.getAdminName());
+
+        room.getDisconnectedParticipants().removeIf(participant -> participant.equalsIgnoreCase(room.getAdminName()));
+        roomRepository.save(room);
+        publishRoomUpdate(room.getId());
         return response;
     }
 
     public void removeParticipant(RemoveParticipantRequest request) {
         Room room = roomRepository.findByRoomId(request.getRoomId())
                 .orElseThrow(() -> new RoomNotFoundException("Sala no encontrada"));
+
+        validateRequiredText(request.getUsernameToRemove(), "El usuario es obligatorio");
 
         if (!room.getAdminName().equalsIgnoreCase(request.getAdminName())) {
             throw new UnauthorizedRoomActionException("Acción denegada: Solo el administrador puede remover participantes.");
@@ -109,12 +125,38 @@ public class RoomService {
             throw new IllegalArgumentException("No se puede remover al administrador de la sala.");
         }
 
-        boolean removed = room.getParticipants().removeIf(p -> p.equalsIgnoreCase(request.getUsernameToRemove()));
-        if (!removed) {
+        String usernameToRemove = request.getUsernameToRemove().trim();
+        boolean removedFromActive = room.getParticipants().removeIf(p -> p.equalsIgnoreCase(usernameToRemove));
+        boolean removedFromDisconnected = room.getDisconnectedParticipants().removeIf(participant -> participant.equalsIgnoreCase(usernameToRemove));
+        if (!removedFromActive && !removedFromDisconnected) {
             throw new IllegalArgumentException("El participante especificado no se encuentra en la sala.");
         }
 
+        removeUserContent(room, usernameToRemove);
+
         roomRepository.save(room);
+        publishRoomUpdate(room.getId());
+    }
+
+    public void markUserConnected(String roomId, String username) {
+        Room room = roomRepository.findByRoomId(roomId)
+                .orElseThrow(() -> new RoomNotFoundException("Sala no encontrada"));
+
+        validateRequiredText(username, "El usuario es obligatorio");
+
+        String normalizedUsername = username.trim();
+        if (normalizedUsername.equalsIgnoreCase(room.getAdminName())) {
+            room.getDisconnectedParticipants().removeIf(participant -> participant.equalsIgnoreCase(normalizedUsername));
+        } else if (!isActiveParticipant(room, normalizedUsername)) {
+            if (!containsIgnoreCase(room.getDisconnectedParticipants(), normalizedUsername)) {
+                throw new IllegalArgumentException("El usuario no pertenece a la sala.");
+            }
+            room.getDisconnectedParticipants().removeIf(participant -> participant.equalsIgnoreCase(normalizedUsername));
+            room.getParticipants().add(normalizedUsername);
+        }
+
+        roomRepository.save(room);
+        publishRoomUpdate(room.getId());
     }
 
 
@@ -124,13 +166,54 @@ public class RoomService {
 
         validateRequiredText(username, "El usuario es obligatorio");
 
-        boolean removed = room.getParticipants().removeIf(p -> p.equalsIgnoreCase(username.trim()));
-        if (!removed && !username.equalsIgnoreCase(room.getAdminName())) {
+        String normalizedUsername = username.trim();
+        boolean removed = room.getParticipants().removeIf(p -> p.equalsIgnoreCase(normalizedUsername));
+        boolean alreadyDisconnected = containsIgnoreCase(room.getDisconnectedParticipants(), normalizedUsername);
+        if (!removed && !alreadyDisconnected && !normalizedUsername.equalsIgnoreCase(room.getAdminName())) {
             throw new IllegalArgumentException("El participante especificado no se encuentra en la sala.");
         }
 
+        if (!containsIgnoreCase(room.getDisconnectedParticipants(), normalizedUsername)) {
+            room.getDisconnectedParticipants().add(normalizedUsername);
+        }
+
         roomRepository.save(room);
+        publishRoomUpdate(room.getId());
     }
+    public List<RoomMemberResponse> getRoomMembers(String roomId) {
+        Room room = roomRepository.findByRoomId(roomId)
+                .orElseThrow(() -> new RoomNotFoundException("La sala no existe"));
+
+        List<RoomMemberResponse> members = new ArrayList<>();
+
+        if (room.getAdminName() != null && !room.getAdminName().trim().isEmpty()) {
+            boolean adminConnected = !containsIgnoreCase(room.getDisconnectedParticipants(), room.getAdminName());
+            members.add(new RoomMemberResponse(room.getAdminName(), true, adminConnected));
+        }
+
+        if (room.getParticipants() != null) {
+            for (String participant : room.getParticipants()) {
+                if (!participant.equalsIgnoreCase(room.getAdminName())) {
+                    members.add(new RoomMemberResponse(participant, false, true));
+                }
+            }
+        }
+
+        if (room.getDisconnectedParticipants() != null) {
+            for (String participant : room.getDisconnectedParticipants()) {
+                if (!participant.equalsIgnoreCase(room.getAdminName()) && !isActiveParticipant(room, participant)) {
+                    members.add(new RoomMemberResponse(participant, false, false));
+                }
+            }
+        }
+
+        members.sort(Comparator
+                .comparing(RoomMemberResponse::isConnected).reversed()
+                .thenComparing(RoomMemberResponse::isAdmin).reversed()
+                .thenComparing(RoomMemberResponse::getUsername, String.CASE_INSENSITIVE_ORDER));
+        return members;
+    }
+
     public List<String> getRoomParticipants(String roomId) {
         Room room = roomRepository.findByRoomId(roomId)
                 .orElseThrow(() -> new RoomNotFoundException("La sala no existe"));
@@ -199,6 +282,7 @@ public class RoomService {
 
         calendar.getTasks().add(task);
         roomRepository.save(room);
+        publishRoomUpdate(room.getId());
     }
 
     public void completeTask(TaskRequest request) {
@@ -214,6 +298,7 @@ public class RoomService {
 
         syncTaskUpdate(room, task);
         roomRepository.save(room);
+        publishRoomUpdate(room.getId());
     }
 
     public void updateTask(TaskRequest request) {
@@ -238,6 +323,7 @@ public class RoomService {
 
         syncTaskUpdate(room, task);
         roomRepository.save(room);
+        publishRoomUpdate(room.getId());
     }
 
     public void deleteTask(TaskRequest request) {
@@ -258,6 +344,7 @@ public class RoomService {
         }
 
         roomRepository.save(room);
+        publishRoomUpdate(room.getId());
     }
 
     // ==========================================
@@ -293,6 +380,7 @@ public class RoomService {
 
         calendar.getNotes().add(note);
         roomRepository.save(room);
+        publishRoomUpdate(room.getId());
     }
 
     public void updateNote(NoteRequest request) {
@@ -310,6 +398,7 @@ public class RoomService {
         }
 
         roomRepository.save(room);
+        publishRoomUpdate(room.getId());
     }
 
     public void deleteNote(NoteRequest request) {
@@ -322,6 +411,7 @@ public class RoomService {
         room.getCalendar().getNotes().remove(note);
         note.setCalendar(null);
         roomRepository.save(room);
+        publishRoomUpdate(room.getId());
     }
 
     // ==========================================
@@ -353,10 +443,51 @@ public class RoomService {
         }
     }
 
+
+    private boolean isActiveParticipant(Room room, String username) {
+        return containsIgnoreCase(room.getParticipants(), username);
+    }
+
+    private boolean containsIgnoreCase(List<String> values, String value) {
+        return values != null && value != null && values.stream()
+                .anyMatch(item -> item.equalsIgnoreCase(value.trim()));
+    }
+
+    private void removeUserContent(Room room, String username) {
+        if (room.getCalendar() == null) {
+            return;
+        }
+
+        String normalizedUsername = username.trim();
+
+        List<Note> notesToRemove = room.getCalendar().getNotes().stream()
+                .filter(note -> note.getCreatedBy() != null && note.getCreatedBy().equalsIgnoreCase(normalizedUsername))
+                .toList();
+        for (Note note : notesToRemove) {
+            room.getCalendar().getNotes().remove(note);
+            note.setCalendar(null);
+        }
+
+        List<Task> tasksToRemove = room.getCalendar().getTasks().stream()
+                .filter(task -> task.getCreatedBy() != null && task.getCreatedBy().equalsIgnoreCase(normalizedUsername))
+                .toList();
+        for (Task task : tasksToRemove) {
+            if (googleCalendarService != null && room.getGoogleCalendarId() != null && task.getGoogleEventId() != null) {
+                try {
+                    googleCalendarService.deleteEvent(task.getGoogleEventId(), room.getGoogleCalendarId());
+                } catch (Exception e) {
+                    System.err.println("Error al eliminar la tarea en Google Calendar: " + e.getMessage());
+                }
+            }
+            room.getCalendar().getTasks().remove(task);
+            task.setCalendar(null);
+        }
+    }
+
     private boolean isRoomMember(Room room, String username) {
         String normalizedUsername = username.trim();
         return (room.getAdminName() != null && room.getAdminName().equalsIgnoreCase(normalizedUsername))
-                || room.getParticipants().stream().anyMatch(participant -> participant.equalsIgnoreCase(normalizedUsername));
+                || isActiveParticipant(room, normalizedUsername);
     }
 
     private void validateOwnerOrAdmin(Room room, String createdBy, String username, String errorMessage) {
@@ -425,24 +556,17 @@ public class RoomService {
         }
     }
 
+
+    private void publishRoomUpdate(String roomId) {
+        if (messagingTemplate != null && roomId != null) {
+            messagingTemplate.convertAndSend("/topic/rooms/" + roomId, "updated");
+        }
+    }
+
     // ==========================================
     // ACCESO DE ADMINISTRADOR (Master Key)
     // ==========================================
     public AdminAccessResponse accessWithMasterKey(AdminAccessRequest request) {
-        // 1. Validar que la llave maestra no sea nula o vacía
-        if (request.getMasterKey() == null || request.getMasterKey().trim().isEmpty()) {
-            throw new RuntimeException("La Master Key es obligatoria");
-        }
-
-        // 2. Buscar la sala utilizando el método existente en tu RoomRepository
-        Room room = roomRepository.findByMasterKey(request.getMasterKey())
-                .orElseThrow(() -> new RuntimeException("La Llave Maestra (Master Key) proporcionada es incorrecta o la sala no existe."));
-
-        // 3. Mapear y construir la respuesta con los datos de la sala encontrada
-        AdminAccessResponse response = new AdminAccessResponse();
-        response.setRoomId(room.getId());
-        response.setAdminName(room.getAdminName());
-
-        return response;
+        return validateMasterKey(request);
     }
 }

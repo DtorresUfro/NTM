@@ -42,7 +42,7 @@ public class RoomController {
 
     @PostMapping("/validate-masterkey")
     public ResponseEntity<AdminAccessResponse> accessWithMasterKey(@RequestBody AdminAccessRequest request) {
-        AdminAccessResponse response = roomService.accessWithMasterKey(request);
+        AdminAccessResponse response = roomService.validateMasterKey(request);
         return ResponseEntity.ok(response);
     }
 
@@ -57,11 +57,31 @@ public class RoomController {
     }
 
 
+
+    @GetMapping("/{roomId}/members")
+    public ResponseEntity<List<RoomMemberResponse>> getMembers(@PathVariable String roomId) {
+        try {
+            return ResponseEntity.ok(roomService.getRoomMembers(roomId));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
     @PostMapping("/leave")
     public ResponseEntity<String> leaveRoom(@RequestBody RemoveParticipantRequest request) {
         try {
             roomService.leaveRoom(request.getRoomId(), request.getUsernameToRemove());
             return ResponseEntity.ok("Usuario retirado exitosamente de la sala.");
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @PostMapping("/presence")
+    public ResponseEntity<String> markPresence(@RequestBody RemoveParticipantRequest request) {
+        try {
+            roomService.markUserConnected(request.getRoomId(), request.getUsernameToRemove());
+            return ResponseEntity.ok("Usuario conectado en la sala.");
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }

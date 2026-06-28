@@ -24,6 +24,14 @@ public class Room {
     @Column(name = "participant_name")
     private List<String> participants = new ArrayList<>();
 
+    @ElementCollection
+    @CollectionTable(
+            name = "room_disconnected_participants",
+            joinColumns = @JoinColumn(name = "room_master_key")
+    )
+    @Column(name = "participant_name")
+    private List<String> disconnectedParticipants = new ArrayList<>();
+
     @Column(name = "google_calendar_id")
     private String googleCalendarId;
 
@@ -57,6 +65,7 @@ public class Room {
     public String getMasterKey() { return masterKey; }
     public String getName() { return name; }
     public List<String> getParticipants() { return participants; }
+    public List<String> getDisconnectedParticipants() { return disconnectedParticipants; }
     public String getAdminName() { return adminName; }
     public String getGoogleCalendarId() { return googleCalendarId; }
     public Calendar getCalendar() { return calendar; }
@@ -67,6 +76,7 @@ public class Room {
     public void setAdminName(String adminName) { this.adminName = adminName; }
     public void setGoogleCalendarId(String googleCalendarId) { this.googleCalendarId = googleCalendarId; }
     public void setCalendar(Calendar calendar) { this.calendar = calendar; }
+    public void setDisconnectedParticipants(List<String> disconnectedParticipants) { this.disconnectedParticipants = disconnectedParticipants; }
 
     public void addParticipant(String name) {
         this.participants.add(name);

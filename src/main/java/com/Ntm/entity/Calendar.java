@@ -17,7 +17,7 @@ public class Calendar {
 
     private String name;
 
-    @OneToMany(mappedBy = "calendar", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "calendar", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Task> tasks =
             new ArrayList<>();
 
