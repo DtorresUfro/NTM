@@ -1,8 +1,6 @@
 package com.ntm.service;
 
 import com.ntm.entity.Task;
-import com.google.api.services.calendar.Calendar;
-import com.google.api.services.calendar.model.Event;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -36,7 +34,7 @@ class GoogleCalendarEventServiceTest {
     }
 
     @Test
-    void shouldThrowExceptionWhenNotAuthenticated() throws Exception {
+    void shouldThrowExceptionWhenNotAuthenticated() {
         when(authService.getCalendarService()).thenReturn(null);
 
         assertThrows(RuntimeException.class, () ->
@@ -44,16 +42,16 @@ class GoogleCalendarEventServiceTest {
     }
 
     @Test
-    void shouldReturnPrimaryCalendarId() throws Exception {
+    void shouldReturnPrimaryCalendarId() {
 
         String result =
-                eventService.createCalendarForRoom("Sala Test", "Ivan");
+                eventService.getPrimaryCalendarId();
 
         assertEquals("primary", result);
     }
 
     @Test
-    void shouldThrowExceptionWhenCreatingEventWithoutAuthentication() throws Exception {
+    void shouldThrowExceptionWhenCreatingEventWithoutAuthentication() {
         when(authService.getCalendarService()).thenReturn(null);
 
         assertThrows(RuntimeException.class, () ->
@@ -61,7 +59,7 @@ class GoogleCalendarEventServiceTest {
     }
 
     @Test
-    void shouldThrowExceptionWhenUpdatingWithoutAuthentication() throws Exception {
+    void shouldThrowExceptionWhenUpdatingWithoutAuthentication() {
 
         when(authService.getCalendarService()).thenReturn(null);
 
@@ -73,7 +71,7 @@ class GoogleCalendarEventServiceTest {
     }
 
     @Test
-    void shouldThrowExceptionWhenDeletingWithoutAuthentication() throws Exception {
+    void shouldThrowExceptionWhenDeletingWithoutAuthentication() {
 
         when(authService.getCalendarService()).thenReturn(null);
 

@@ -10,6 +10,7 @@ import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.client.util.store.FileDataStoreFactory;
 import com.google.api.services.calendar.Calendar;
 import com.google.api.services.calendar.CalendarScopes;
+import com.ntm.exception.GoogleCalendarException;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,6 +18,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
+import java.io.IOException;
+import java.security.GeneralSecurityException;
 import java.util.Collections;
 import java.util.List;
 
@@ -40,18 +43,17 @@ public class GoogleCalendarAuthService {
     private String redirectUri;
 
     private GoogleAuthorizationCodeFlow flow;
-    private FileDataStoreFactory dataStoreFactory;
     private com.google.api.client.http.HttpTransport httpTransport;
 
     @PostConstruct
     public void init() {
         try {
             if (clientId == null || clientId.isBlank() || clientSecret == null || clientSecret.isBlank()) {
-                LOGGER.warn("GOOGLE_CLIENT_ID o GOOGLE_CLIENT_SECRET no configurados. La integración con Google Calendar estará deshabilitada.");
+                LOGGER.warn("GOOGLE_CLIENT_ID o GOOGLE_CLIENT_SECRET no configurados. La integracion con Google Calendar estara deshabilitada.");
                 return;
             }
             this.httpTransport = GoogleNetHttpTransport.newTrustedTransport();
-            this.dataStoreFactory = new FileDataStoreFactory(new File(TOKENS_DIRECTORY_PATH));
+            FileDataStoreFactory dataStoreFactory = new FileDataStoreFactory(new File(TOKENS_DIRECTORY_PATH));
 
             GoogleClientSecrets clientSecrets = new GoogleClientSecrets();
             clientSecrets.setInstalled(new GoogleClientSecrets.Details()
@@ -64,16 +66,18 @@ public class GoogleCalendarAuthService {
                     .setDataStoreFactory(dataStoreFactory)
                     .setAccessType("offline")
                     .build();
-        } catch (Exception e) {
-            LOGGER.warn("Error al inicializar Google Calendar: {}. La integración estará deshabilitada.", e.getMessage());
+        } catch (GeneralSecurityException | IOException e) {
+            LOGGER.warn("Error al inicializar Google Calendar: {}. La integracion estara deshabilitada.", e.getMessage());
         }
     }
 
     /**
-     * Genera la URL de autorización para redirigir al usuario a Google
+     * Genera la URL de autorizacion para redirigir al usuario a Google.
      */
     public String getAuthorizationUrl() {
-        if (flow == null) throw new RuntimeException("Google Calendar no está configurado.");
+        if (flow == null) {
+            throw new GoogleCalendarException("Google Calendar no esta configurado.");
+        }
         return flow.newAuthorizationUrl()
                 .setRedirectUri(redirectUri)
                 .setAccessType("offline")
@@ -81,38 +85,52 @@ public class GoogleCalendarAuthService {
     }
 
     /**
-     * Intercambia el código de autorización por un token de acceso (Credential)
+     * Intercambia el codigo de autorizacion por un token de acceso.
      */
-    public Credential exchangeCodeForCredential(String code) throws Exception {
-        if (flow == null) throw new RuntimeException("Google Calendar no está configurado.");
-        TokenResponse tokenResponse = flow.newTokenRequest(code)
-                .setRedirectUri(redirectUri)
-                .execute();
+    public Credential exchangeCodeForCredential(String code) {
+        if (flow == null) {
+            throw new GoogleCalendarException("Google Calendar no esta configurado.");
+        }
+        try {
+            TokenResponse tokenResponse = flow.newTokenRequest(code)
+                    .setRedirectUri(redirectUri)
+                    .execute();
 
-        return flow.createAndStoreCredential(tokenResponse, "user");
+            return flow.createAndStoreCredential(tokenResponse, "user");
+        } catch (IOException e) {
+            throw new GoogleCalendarException("No se pudo obtener credenciales de Google Calendar.", e);
+        }
     }
 
     /**
-     * Obtiene las credenciales guardadas (si el usuario ya autorizó)
+     * Obtiene las credenciales guardadas si el usuario ya autorizo.
      */
-    public Credential getStoredCredentials() throws Exception {
-        if (flow == null) return null;
-        return flow.loadCredential("user");
+    public Credential getStoredCredentials() {
+        if (flow == null) {
+            return null;
+        }
+        try {
+            return flow.loadCredential("user");
+        } catch (IOException e) {
+            throw new GoogleCalendarException("No se pudo leer las credenciales de Google Calendar.", e);
+        }
     }
 
     /**
-     * Obtiene el servicio de Calendar (con las credenciales guardadas)
-     * Si no hay credenciales guardadas, devuelve null
+     * Obtiene el servicio de Calendar con las credenciales guardadas.
      */
-    public Calendar getCalendarService() throws Exception {
+    public Calendar getCalendarService() {
         Credential credential = getStoredCredentials();
         if (credential == null) {
             return null;
         }
 
-        // Verificar si el token expiró y refrescarlo
-        if (credential.getExpiresInSeconds() != null && credential.getExpiresInSeconds() <= 60) {
-            credential.refreshToken();
+        try {
+            if (credential.getExpiresInSeconds() != null && credential.getExpiresInSeconds() <= 60) {
+                credential.refreshToken();
+            }
+        } catch (IOException e) {
+            throw new GoogleCalendarException("No se pudo refrescar el token de Google Calendar.", e);
         }
 
         return new Calendar.Builder(httpTransport, JSON_FACTORY, credential)
@@ -121,9 +139,9 @@ public class GoogleCalendarAuthService {
     }
 
     /**
-     * Verifica si el usuario ya está autenticado
+     * Verifica si el usuario ya esta autenticado.
      */
-    public boolean isAuthenticated() throws Exception {
+    public boolean isAuthenticated() {
         return getStoredCredentials() != null;
     }
 }

@@ -1,8 +1,10 @@
 package com.ntm.entity;
 
 import org.junit.jupiter.api.Test;
+
 import java.lang.reflect.Field;
 import java.util.Date;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class NotificationTest {
@@ -11,8 +13,6 @@ class NotificationTest {
     void shouldUseAllSettersAndGetters() {
 
         Notification notification = new Notification();
-
-        Date now = new Date();
 
         notification.setRoomMasterKey("ROOM-123");
         notification.setTargetUser("Ivan");

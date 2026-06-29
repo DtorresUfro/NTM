@@ -1,10 +1,12 @@
 package com.ntm.service;
 
-import com.ntm.entity.Task;
 import com.google.api.services.calendar.model.Event;
 import com.google.api.services.calendar.model.EventDateTime;
+import com.ntm.entity.Task;
+import com.ntm.exception.GoogleCalendarException;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
 import java.time.ZoneId;
 import java.util.Date;
 
@@ -17,15 +19,15 @@ public class GoogleCalendarEventService {
         this.googleAuthService = googleAuthService;
     }
 
-    private com.google.api.services.calendar.Calendar getCalendarService() throws Exception {
+    private com.google.api.services.calendar.Calendar getCalendarService() {
         com.google.api.services.calendar.Calendar service = googleAuthService.getCalendarService();
         if (service == null) {
-            throw new RuntimeException("Google Calendar no autenticado");
+            throw new GoogleCalendarException("Google Calendar no autenticado");
         }
         return service;
     }
 
-    public Event createEventFromTask(Task task, String calendarId) throws Exception {
+    public Event createEventFromTask(Task task, String calendarId) {
         com.google.api.services.calendar.Calendar service = getCalendarService();
 
         Event event = new Event()
@@ -33,30 +35,32 @@ public class GoogleCalendarEventService {
                 .setDescription(task.getDescription());
 
         if (task.getDueDate() != null) {
-            Date fecha = task.getDueDate();
+            Date dueDate = task.getDueDate();
             EventDateTime start = new EventDateTime()
-                    .setDateTime(new com.google.api.client.util.DateTime(fecha))
+                    .setDateTime(new com.google.api.client.util.DateTime(dueDate))
                     .setTimeZone(ZoneId.systemDefault().toString());
 
             event.setStart(start);
             event.setEnd(start);
         }
 
-        Event created = service.events()
-                .insert(calendarId, event)
-                .execute();
+        try {
+            Event created = service.events()
+                    .insert(calendarId, event)
+                    .execute();
 
-        task.setGoogleEventId(created.getId());
-        return created;
+            task.setGoogleEventId(created.getId());
+            return created;
+        } catch (IOException e) {
+            throw new GoogleCalendarException("No se pudo crear el evento en Google Calendar.", e);
+        }
     }
 
-    // MODIFICADO: Ya no crea calendarios ajenos en la cuenta de Google
-    public String createCalendarForRoom(String roomName, String adminName) throws Exception {
-        // Retornamos el ID por defecto del calendario principal del usuario
+    public String getPrimaryCalendarId() {
         return "primary";
     }
 
-    public Event updateEventFromTask(String eventId, Task task, String calendarId) throws Exception {
+    public Event updateEventFromTask(String eventId, Task task, String calendarId) {
         Event event = new Event()
                 .setSummary(task.getTitle())
                 .setDescription(task.getDescription());
@@ -70,16 +74,24 @@ public class GoogleCalendarEventService {
             event.setEnd(dateTime);
         }
 
-        return getCalendarService()
-                .events()
-                .update(calendarId, eventId, event)
-                .execute();
+        try {
+            return getCalendarService()
+                    .events()
+                    .update(calendarId, eventId, event)
+                    .execute();
+        } catch (IOException e) {
+            throw new GoogleCalendarException("No se pudo actualizar el evento en Google Calendar.", e);
+        }
     }
 
-    public void deleteEvent(String eventId, String calendarId) throws Exception {
-        getCalendarService()
-                .events()
-                .delete(calendarId, eventId)
-                .execute();
+    public void deleteEvent(String eventId, String calendarId) {
+        try {
+            getCalendarService()
+                    .events()
+                    .delete(calendarId, eventId)
+                    .execute();
+        } catch (IOException e) {
+            throw new GoogleCalendarException("No se pudo eliminar el evento en Google Calendar.", e);
+        }
     }
 }

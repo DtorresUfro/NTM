@@ -9,5 +9,7 @@ import org.springframework.test.context.ActiveProfiles;
 class NtmApplicationTest {
 
     @Test
-    void contextLoads() {}
+    void contextLoads() {
+        // Spring Boot fails this smoke test if the application context cannot start.
+    }
 }

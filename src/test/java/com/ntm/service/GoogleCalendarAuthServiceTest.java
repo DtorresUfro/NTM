@@ -1,14 +1,20 @@
 package com.ntm.service;
+
+import com.ntm.exception.GoogleCalendarException;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+
 import java.lang.reflect.Field;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class GoogleCalendarAuthServiceTest {
 
     @Test
-    void shouldReturnFalseWhenNotAuthenticated() throws Exception {
-
+    void shouldReturnFalseWhenNotAuthenticated() {
         GoogleCalendarAuthService service = new GoogleCalendarAuthService();
+
         assertFalse(service.isAuthenticated());
     }
 
@@ -29,79 +35,63 @@ class GoogleCalendarAuthServiceTest {
         assertTrue(url.contains("redirect_uri=http://localhost:8080/callback"));
     }
 
-    @Test
-    void shouldNotFailWhenRedirectUriIsMissing() {
+    @ParameterizedTest
+    @CsvSource({
+            "test-client-id,test-client-secret,''",
+            "'', '', ''",
+            "test-client-id,'',http://localhost:8080/callback"
+    })
+    void shouldNotFailWhenClientConfigurationIsIncomplete(
+            String clientId,
+            String clientSecret,
+            String redirectUri
+    ) {
         GoogleCalendarAuthService service = new GoogleCalendarAuthService();
 
-        setField(service, "clientId", "test-client-id");
-        setField(service, "clientSecret", "test-client-secret");
-        setField(service, "redirectUri", "");
+        setField(service, "clientId", clientId);
+        setField(service, "clientSecret", clientSecret);
+        setField(service, "redirectUri", redirectUri);
 
         assertDoesNotThrow(service::init);
     }
 
     @Test
-    void shouldReturnNullStoredCredentialsWhenFlowIsNull() throws Exception {
-
+    void shouldReturnNullStoredCredentialsWhenFlowIsNull() {
         GoogleCalendarAuthService service = new GoogleCalendarAuthService();
+
         assertNull(service.getStoredCredentials());
     }
 
     @Test
     void shouldThrowExceptionWhenGoogleIsNotConfigured() {
         GoogleCalendarAuthService service = new GoogleCalendarAuthService();
-        assertThrows(RuntimeException.class,
+
+        assertThrows(GoogleCalendarException.class,
                 service::getAuthorizationUrl);
     }
 
     @Test
     void shouldThrowExceptionWhenExchangingWithoutConfiguration() {
-
         GoogleCalendarAuthService service = new GoogleCalendarAuthService();
-        assertThrows(RuntimeException.class,
+
+        assertThrows(GoogleCalendarException.class,
                 () -> service.exchangeCodeForCredential("codigo"));
     }
 
     @Test
-    void shouldReturnNullCalendarServiceWhenNoCredentials() throws Exception {
-
+    void shouldReturnNullCalendarServiceWhenNoCredentials() {
         GoogleCalendarAuthService service = new GoogleCalendarAuthService();
+
         assertNull(service.getCalendarService());
     }
 
-    @Test
-    void shouldNotInitializeFlowWhenClientConfigurationIsMissing() {
-
-        GoogleCalendarAuthService service = new GoogleCalendarAuthService();
-
-        setField(service, "clientId", "");
-        setField(service, "clientSecret", "");
-        setField(service, "redirectUri", "");
-
-        assertDoesNotThrow(service::init);
-    }
-
-    @Test
-    void shouldNotFailWhenCredentialsArePartiallyConfigured() {
-        GoogleCalendarAuthService service = new GoogleCalendarAuthService();
-
-        setField(service, "clientId", "test-client-id");
-        setField(service, "clientSecret", "");
-        setField(service, "redirectUri", "http://localhost:8080/callback");
-
-        assertDoesNotThrow(service::init);
-    }
-
-    /**
-     * Método auxiliar para modificar atributos privados mediante Reflection.
-     */
     private void setField(Object target, String fieldName, Object value) {
         try {
             Field field = target.getClass().getDeclaredField(fieldName);
             field.setAccessible(true);
             field.set(target, value);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException(e);
         }
     }
 }

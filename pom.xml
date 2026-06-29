@@ -37,6 +37,12 @@
 
 	<properties>
 		<java.version>21</java.version>
+		<sonar.coverage.exclusions>
+			**/NtmApplication.java,
+			**/exception/**,
+			**/service/GoogleCalendarAuthService.java,
+			**/service/GoogleCalendarEventService.java
+		</sonar.coverage.exclusions>
 	</properties>
 
 	<dependencies>

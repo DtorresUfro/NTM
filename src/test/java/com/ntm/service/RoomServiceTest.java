@@ -26,7 +26,7 @@ class RoomServiceTest {
     void setUp() {
         roomRepository = mock(RoomRepository.class);
         notificationService = mock(NotificationService.class);
-        roomService = new RoomService(roomRepository, null, notificationService);
+        roomService = new RoomService(roomRepository, null, notificationService, null);
     }
 
     /**
