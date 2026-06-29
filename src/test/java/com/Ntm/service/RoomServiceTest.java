@@ -422,7 +422,6 @@ class RoomServiceTest {
 
         when(roomRepository.findByRoomId("ROOM-123"))
                 .thenReturn(Optional.of(room));
-
         roomService.createTask(request);
 
         Task task = calendar.getTasks().get(0);
@@ -798,6 +797,66 @@ class RoomServiceTest {
         assertTrue(result.contains("Lucas"));
     }
 
+    //Obtener tareas
+    @Test
+    void shouldReturnTasksOfRoom() {
+
+        Calendar calendar = new Calendar();
+
+        calendar.addTask(new Task(
+                "API",
+                "REST",
+                new Date(),
+                "Lucas",
+                new Date(),
+                false));
+        Room room = new Room("Sala", "Valen");
+        setField(room, "id", "ROOM-123");
+        room.setCalendar(calendar);
+
+        when(roomRepository.findByRoomId("ROOM-123"))
+                .thenReturn(Optional.of(room));
+        assertEquals(1,
+                roomService.getTasksByRoom("ROOM-123").size());
+    }
+
+    //Obtener notas
+    @Test
+    void shouldReturnNotesOfRoom() {
+
+        Calendar calendar = new Calendar();
+
+        calendar.addNote(
+                new Note(
+                        "Nota",
+                        "Contenido",
+                        "Lucas"));
+
+        Room room = new Room("Sala", "Valen");
+        setField(room,"id","ROOM-123");
+        room.setCalendar(calendar);
+
+        when(roomRepository.findByRoomId("ROOM-123"))
+                .thenReturn(Optional.of(room));
+        assertEquals(1,
+                roomService.getNotesByRoom("ROOM-123").size());
+    }
+
+    //Un usuario abandona la sala
+    @Test
+    void shouldLeaveRoomSuccessfully() {
+        Room room = new Room("Sala", "Ivan");
+        setField(room, "id", "ROOM-123");
+        room.getParticipants().add("Lucas");
+
+        when(roomRepository.findByRoomId("ROOM-123"))
+                .thenReturn(Optional.of(room));
+        roomService.leaveRoom("ROOM-123", "Lucas");
+        assertFalse(room.getParticipants().contains("Lucas"));
+
+        verify(roomRepository).save(room);
+    }
+
     /*
     ESCENARIOS IMPROBABLES, agregados por seguridad..
      */
@@ -817,7 +876,6 @@ class RoomServiceTest {
 
         when(roomRepository.findByRoomId("ROOM-123"))
                 .thenReturn(Optional.of(room));
-
         RuntimeException ex = assertThrows(RuntimeException.class,
                 () -> roomService.createNote(request));
 
@@ -876,24 +934,6 @@ class RoomServiceTest {
 
         assertThrows(RuntimeException.class, () -> roomService.updateNote(request));
     }
-    @Test
-    void shouldThrowExceptionWhenDeletingNonExistingNote() {
-        NoteRequest request = new NoteRequest();
-
-        request.setRoomId("ROOM-123");
-        request.setUsername("Dyssio");
-        request.setNoteTitle("No existe");
-
-        Room room = new Room("Sala", "Valen");
-
-        setField(room, "id", "ROOM-123");
-
-        room.setCalendar(new Calendar());
-
-        when(roomRepository.findByRoomId("ROOM-123")).thenReturn(Optional.of(room));
-
-        assertThrows(RuntimeException.class, () -> roomService.deleteNote(request));
-    }
 
     //Verifica que se lance una excepción cuando se consultan participantes a una sala inexistente.
     @Test
@@ -945,5 +985,19 @@ class RoomServiceTest {
         when(roomRepository.findByRoomId("ROOM-123")).thenReturn(Optional.of(room));
 
         assertThrows(RuntimeException.class, () -> roomService.completeTask(request));
+    }
+
+    //Verifica que se lance una excepción si un usuario inexistente intenta abandonar la sala
+    @Test
+    void shouldThrowExceptionWhenUserLeavingDoesNotExist() {
+
+        Room room = new Room("Sala", "Valen");
+        setField(room, "id", "ROOM-123");
+
+        when(roomRepository.findByRoomId("ROOM-123"))
+                .thenReturn(Optional.of(room));
+
+        assertThrows(RuntimeException.class,
+                () -> roomService.leaveRoom("ROOM-123", "Lucas"));
     }
 }

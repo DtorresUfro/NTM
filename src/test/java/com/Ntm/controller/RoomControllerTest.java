@@ -1,6 +1,8 @@
 package com.Ntm.controller;
 
 import com.Ntm.dto.*;
+import com.Ntm.entity.Note;
+import com.Ntm.entity.Task;
 import com.Ntm.service.RoomService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
@@ -10,6 +12,8 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import java.util.ArrayList;
+import java.util.List;
+
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
@@ -109,7 +113,6 @@ class RoomControllerTest {
                 .andExpect(content().string("Usuario inexistente en la sala"));
     }
 
-
     @Test
     void shouldLeaveRoomSuccessfully() throws Exception {
         RemoveParticipantRequest request = new RemoveParticipantRequest();
@@ -136,6 +139,15 @@ class RoomControllerTest {
     }
 
     @Test
+    void shouldGetTasksSuccessfully() throws Exception {
+        when(roomService.getTasksByRoom("ROOM"))
+                .thenReturn(List.of(new Task()));
+
+        mockMvc.perform(get("/api/rooms/ROOM/tasks"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
     void shouldReturnBadRequestWhenCreateTaskFails() throws Exception {
         TaskRequest request = new TaskRequest();
 
@@ -148,6 +160,15 @@ class RoomControllerTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().string("Error al crear tarea"));
+    }
+
+    @Test
+    void shouldReturnBadRequestWhenGettingTasksFails() throws Exception {
+        when(roomService.getTasksByRoom("ROOM"))
+                .thenThrow(new RuntimeException());
+
+        mockMvc.perform(get("/api/rooms/ROOM/tasks"))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
@@ -218,6 +239,15 @@ class RoomControllerTest {
     }
 
     @Test
+    void shouldGetNotesSuccessfully() throws Exception {
+        when(roomService.getNotesByRoom("ROOM"))
+                .thenReturn(List.of(new Note()));
+
+        mockMvc.perform(get("/api/rooms/ROOM/notes"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
     void shouldReturnBadRequestWhenCreateNoteFails() throws Exception {
         NoteRequest request = new NoteRequest();
 
@@ -230,6 +260,15 @@ class RoomControllerTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().string("Usuario no pertenece a la sala"));
+    }
+
+    @Test
+    void shouldReturnBadRequestWhenGettingNotesFails() throws Exception {
+        when(roomService.getNotesByRoom("ROOM"))
+                .thenThrow(new RuntimeException());
+
+        mockMvc.perform(get("/api/rooms/ROOM/notes"))
+                .andExpect(status().isBadRequest());
     }
 
     @Test

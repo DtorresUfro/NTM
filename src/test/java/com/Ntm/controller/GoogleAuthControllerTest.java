@@ -46,4 +46,17 @@ class GoogleAuthControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("Autenticación con Google Calendar completada correctamente."));
     }
+
+    @Test
+    void shouldHandleCallbackFailure() throws Exception {
+
+        mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
+        when(authService.exchangeCodeForCredential(anyString()))
+                .thenThrow(new RuntimeException("Código inválido"));
+
+        mockMvc.perform(get("/callback")
+                        .param("code", "incorrect"))
+                .andExpect(status().isOk())
+                .andExpect(content().string("Error durante la autenticación: Código inválido"));
+    }
 }

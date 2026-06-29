@@ -43,4 +43,39 @@ class GoogleCalendarEventServiceTest {
         assertThrows(RuntimeException.class, () ->
                 eventService.createEventFromTask(task, "calendar-123"));
     }
+
+    //Devuelve primary al crear una sala
+    @Test
+    void shouldReturnPrimaryCalendarId() throws Exception {
+
+        String result =
+                eventService.createCalendarForRoom("Sala Test", "Ivan");
+
+        assertEquals("primary", result);
+    }
+
+    //Actualizar Event sin autenticación
+    @Test
+    void shouldThrowExceptionWhenUpdatingWithoutAuthentication() throws Exception {
+
+        when(authService.getCalendarService()).thenReturn(null);
+
+        assertThrows(RuntimeException.class, () ->
+                eventService.updateEventFromTask(
+                        "event123",
+                        task,
+                        "primary"));
+    }
+
+    //Delete Event sin autenticación
+    @Test
+    void shouldThrowExceptionWhenDeletingWithoutAuthentication() throws Exception {
+
+        when(authService.getCalendarService()).thenReturn(null);
+
+        assertThrows(RuntimeException.class, () ->
+                eventService.deleteEvent(
+                        "event123",
+                        "primary"));
+    }
 }

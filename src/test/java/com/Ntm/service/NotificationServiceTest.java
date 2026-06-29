@@ -29,12 +29,10 @@ class NotificationServiceTest {
 
     @Test
     void shouldCreateNotificationWhenTaskIsOverdue() {
-
         Task task = new Task();
         task.setTitle("Tarea");
 
         task.setDueDate(new Date(System.currentTimeMillis() - 100000));
-
         service.createTaskNotification(task, "ROOM1", "Ivan");
 
         verify(repository).save(any(Notification.class));
@@ -42,12 +40,10 @@ class NotificationServiceTest {
 
     @Test
     void shouldNotCreateNotificationWhenTaskIsNotOverdue() {
-
         Task task = new Task();
         task.setTitle("Tarea");
 
         task.setDueDate(new Date(System.currentTimeMillis() + 100000));
-
         service.createTaskNotification(task, "ROOM1", "Ivan");
 
         verify(repository, never()).save(any());
@@ -55,7 +51,6 @@ class NotificationServiceTest {
 
     @Test
     void shouldReturnNotifications() {
-
         List<Notification> notifications = List.of(
                 new Notification("ROOM","Ivan","Hola")
         );
@@ -63,25 +58,19 @@ class NotificationServiceTest {
         when(repository.findByRoomMasterKeyAndTargetUser(
                 "ROOM","Ivan"))
                 .thenReturn(notifications);
-
         List<Notification> result =
                 service.getNotifications("ROOM","Ivan");
 
         assertEquals(1,result.size());
-
     }
 
     @Test
     void shouldMarkNotificationAsRead() {
-
         Notification notification =
                 new Notification("ROOM","Ivan","Mensaje");
-
         when(repository.findById(1L))
                 .thenReturn(Optional.of(notification));
-
         service.read(1L);
-
         assertTrue(notification.isReadStatus());
 
         verify(repository).save(notification);
@@ -90,13 +79,12 @@ class NotificationServiceTest {
 
     @Test
     void shouldThrowExceptionWhenNotificationDoesNotExist(){
-
         when(repository.findById(10L))
                 .thenReturn(Optional.empty());
 
         assertThrows(NoSuchElementException.class,
                 ()-> service.read(10L));
-
     }
+
 
 }
