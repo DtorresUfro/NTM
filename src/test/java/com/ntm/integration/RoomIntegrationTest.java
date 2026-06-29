@@ -5,6 +5,7 @@ import com.ntm.entity.Room;
 import com.ntm.entity.Task;
 import com.ntm.repository.RoomRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -43,7 +44,7 @@ class RoomIntegrationTest {
 
         mockMvc.perform(post("/api/rooms")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
+                        .content(toJson(request)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.roomId").exists())
                 .andExpect(jsonPath("$.masterKey").exists())
@@ -53,7 +54,7 @@ class RoomIntegrationTest {
     }
 
     @Test
-    void shouldNotCreateRoomWhenNameIsEmpty() throws Exception {
+    void shouldNotCreateRoomWhenNameIsEmpty() {
         CreateRoomRequest request = new CreateRoomRequest();
         request.setRoomName("");
         request.setAdminName("Valen");
@@ -61,7 +62,7 @@ class RoomIntegrationTest {
         assertThrows(ServletException.class, () ->
                 mockMvc.perform(post("/api/rooms")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
+                        .content(toJson(request)))
         );
 
         assertEquals(0, roomRepository.count());
@@ -93,7 +94,7 @@ class RoomIntegrationTest {
     }
 
     @Test
-    void shouldNotJoinRoomWithEmptyUsername() throws Exception {
+    void shouldNotJoinRoomWithEmptyUsername() {
         Room room = new Room("Sala Test", "Valen");
         roomRepository.save(room);
 
@@ -104,7 +105,7 @@ class RoomIntegrationTest {
         assertThrows(Exception.class, () ->
                 mockMvc.perform(post("/api/rooms/join")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
+                        .content(toJson(request)))
         );
 
         Room updated = roomRepository.findByRoomId(room.getId()).orElseThrow();
@@ -125,14 +126,14 @@ class RoomIntegrationTest {
 
         mockMvc.perform(delete("/api/rooms/{roomId}", room.getId())
                                 .contentType(MediaType.APPLICATION_JSON)
-                                .content(objectMapper.writeValueAsString(request)))
+                                .content(toJson(request)))
                 .andExpect(status().isOk());
 
         assertTrue(roomRepository.findByRoomId(room.getId()).isEmpty());
     }
 
     @Test
-    void shouldNotDeleteRoomWhenRequesterIsNotAdmin() throws Exception {
+    void shouldNotDeleteRoomWhenRequesterIsNotAdmin() {
 
         Room room = new Room("Sala", "Ivan");
         roomRepository.save(room);
@@ -143,7 +144,7 @@ class RoomIntegrationTest {
         assertThrows(ServletException.class, () ->
                 mockMvc.perform(delete("/api/rooms/{roomId}", room.getId())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
+                        .content(toJson(request)))
         );
 
         assertTrue(roomRepository.findByRoomId(room.getId()).isPresent());
@@ -162,21 +163,21 @@ class RoomIntegrationTest {
 
         mockMvc.perform(post("/api/rooms/validate-masterkey")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
+                        .content(toJson(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.roomId").value(room.getId()))
                 .andExpect(jsonPath("$.adminName").value("Valen"));
     }
 
     @Test
-    void shouldRejectInvalidMasterKey() throws Exception {
+    void shouldRejectInvalidMasterKey() {
         AdminAccessRequest request = new AdminAccessRequest();
         request.setMasterKey("incorrecta");
 
         assertThrows(ServletException.class, () ->
                 mockMvc.perform(post("/api/rooms/validate-masterkey")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
+                        .content(toJson(request)))
         );
     }
 
@@ -245,7 +246,7 @@ class RoomIntegrationTest {
 
         mockMvc.perform(post("/api/rooms/notes")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
+                        .content(toJson(request)))
                 .andExpect(status().isOk());
 
         request.setUsername("Valen");
@@ -253,7 +254,7 @@ class RoomIntegrationTest {
 
         mockMvc.perform(put("/api/rooms/notes")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
+                        .content(toJson(request)))
                 .andExpect(status().isBadRequest());
     }
 
@@ -359,7 +360,7 @@ class RoomIntegrationTest {
 
         mockMvc.perform(post("/api/rooms/remove-participant")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
+                        .content(toJson(request)))
                 .andExpect(status().isOk());
 
         Room updatedRoom = roomRepository.findByRoomId(room.getId()).orElseThrow();
@@ -382,7 +383,7 @@ class RoomIntegrationTest {
 
         mockMvc.perform(post("/api/rooms/remove-participant")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
+                        .content(toJson(request)))
                 .andExpect(status().isBadRequest());
 
         Room updated = roomRepository.findByRoomId(room.getId()).orElseThrow();
@@ -390,4 +391,11 @@ class RoomIntegrationTest {
         assertTrue(updated.getParticipants().contains("Dyssio"));
     }
 
+    private String toJson(Object value) {
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("No se pudo serializar el request de prueba", e);
+        }
+    }
 }
