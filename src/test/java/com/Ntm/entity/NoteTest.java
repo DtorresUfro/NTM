@@ -37,4 +37,14 @@ class NoteTest {
 
         assertEquals(now, note.getUpdatedAt());
     }
+
+    //Eliminar nota
+    @Test
+    void shouldDeleteNote() {
+        Note note = new Note("Titulo", "Contenido", "Lucas");
+
+        note.delete();
+
+        assertFalse(note.isActive());
+    }
 }

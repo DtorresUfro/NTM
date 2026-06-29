@@ -2,6 +2,7 @@ package com.Ntm.integration;
 
 import com.Ntm.dto.*;
 import com.Ntm.entity.Room;
+import com.Ntm.entity.Task;
 import com.Ntm.repository.RoomRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
@@ -12,11 +13,12 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Date;
+
 import static org.junit.jupiter.api.Assertions.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -110,6 +112,106 @@ class RoomIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.roomId").value(room.getId()))
                 .andExpect(jsonPath("$.adminName").value("Valen"));
+    }
+
+    //CU5 Gestionar notas o avisos
+    @Test
+    void shouldManageNoteEndToEnd() throws Exception {
+        CreateRoomRequest roomRequest = new CreateRoomRequest();
+        roomRequest.setRoomName("Sala Notas");
+        roomRequest.setAdminName("Valen");
+
+        String roomResponse = mockMvc.perform(post("/api/rooms")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(roomRequest)))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        CreateRoomResponse roomData = objectMapper.readValue(roomResponse, CreateRoomResponse.class);
+        String roomId = roomData.getRoomId();
+
+        NoteRequest noteRequest = new NoteRequest();
+        noteRequest.setRoomId(roomId);
+        noteRequest.setUsername("Valen");
+        noteRequest.setNoteTitle("Nota de prueba");
+        noteRequest.setContent("Contenido de la nota");
+
+        mockMvc.perform(post("/api/rooms/notes")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(noteRequest)))
+                .andExpect(status().isOk())
+                .andExpect(content().string("Nota agregada exitosamente"));
+
+        Room room = roomRepository.findByRoomId(roomId).orElseThrow();
+        assertEquals(1, room.getCalendar().getNotes().size());
+
+        noteRequest.setContent("Contenido actualizado");
+        mockMvc.perform(put("/api/rooms/notes")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(noteRequest)))
+                .andExpect(status().isOk())
+                .andExpect(content().string("Nota editada exitosamente"));
+        room = roomRepository.findByRoomId(roomId).orElseThrow();
+        assertEquals("Contenido actualizado", room.getCalendar().getNotes().get(0).getContent());
+
+        mockMvc.perform(delete("/api/rooms/notes")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(noteRequest)))
+                .andExpect(status().isOk())
+                .andExpect(content().string("Nota eliminada exitosamente"));
+        room = roomRepository.findByRoomId(roomId).orElseThrow();
+        assertTrue(room.getCalendar().getNotes().isEmpty());
+    }
+
+    //CU6 Recibir notificaciones
+    @Test
+    void shouldCreateNotificationWhenTaskIsOverdueEndToEnd() throws Exception {
+        CreateRoomRequest roomRequest = new CreateRoomRequest();
+        roomRequest.setRoomName("Sala Notificaciones");
+        roomRequest.setAdminName("Valen");
+
+        String roomResponse = mockMvc.perform(post("/api/rooms")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(roomRequest)))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        CreateRoomResponse roomData = objectMapper.readValue(roomResponse, CreateRoomResponse.class);
+        String roomId = roomData.getRoomId();
+
+        JoinRoomRequest joinRequest = new JoinRoomRequest();
+        joinRequest.setRoomId(roomId);
+        joinRequest.setUsername("Lucas");
+
+        mockMvc.perform(post("/api/rooms/join")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(joinRequest)))
+                .andExpect(status().isOk());
+
+        TaskRequest taskRequest = new TaskRequest();
+        taskRequest.setRoomId(roomId);
+        taskRequest.setUsername("Valen");
+        taskRequest.setTaskTitle("Tarea atrasada");
+        taskRequest.setDescription("Esta tarea esta atrasada");
+        taskRequest.setDueDate(new Date(System.currentTimeMillis() - 86400000));
+
+        mockMvc.perform(post("/api/rooms/tasks")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(taskRequest)))
+                .andExpect(status().isOk())
+                .andExpect(content().string("Tarea agregada exitosamente"));
+
+        Room room = roomRepository.findByRoomId(roomId).orElseThrow();
+        Task task = room.getCalendar().getTasks().get(0);
+        assertTrue(task.isOverdue());
+
+        mockMvc.perform(get("/notifications/" + roomId + "/Lucas"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].message").value("La tarea 'Tarea atrasada' está atrasada"))
+                .andExpect(jsonPath("$[0].targetUser").value("Lucas"))
+                .andExpect(jsonPath("$[0].roomMasterKey").value(roomId));
     }
 
     //CU7 Eliminar usuario por admin

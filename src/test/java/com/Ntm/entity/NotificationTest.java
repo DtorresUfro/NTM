@@ -1,27 +1,31 @@
-package com.Ntm;
+package com.Ntm.entity;
 
-import com.Ntm.entity.Notification;
 import org.junit.jupiter.api.Test;
 import java.lang.reflect.Field;
 import java.util.Date;
 import static org.junit.jupiter.api.Assertions.*;
 
 class NotificationTest {
-    /*
-    Estos test son temporales con fines de cobertura,
-    hasta que se implementen las notificaciones correctamente.
-     */
 
     @Test
-    void shouldCreateNotification() throws Exception {
-        Notification notification = new Notification(
-                "ROOM-123", "Valen", "Nueva tarea creada");
+    void shouldUseAllSettersAndGetters() {
 
-        Field messageField = Notification.class.getDeclaredField("message");
+        Notification notification = new Notification();
 
-        messageField.setAccessible(true);
+        Date now = new Date();
 
-        assertEquals("Nueva tarea creada", messageField.get(notification));
+        notification.setRoomMasterKey("ROOM-123");
+        notification.setTargetUser("Ivan");
+        notification.setMessage("Notificacion Prueba");
+        notification.setReadStatus(true);
+
+        assertEquals("ROOM-123", notification.getRoomMasterKey());
+        assertEquals("Ivan", notification.getTargetUser());
+        assertEquals("Notificacion Prueba", notification.getMessage());
+        assertTrue(notification.isReadStatus());
+
+        assertNotNull(notification.getCreatedAt());
+        assertTrue(notification.getCreatedAt() instanceof Date);
     }
 
     @Test

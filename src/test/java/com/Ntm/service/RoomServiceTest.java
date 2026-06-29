@@ -19,11 +19,13 @@ class RoomServiceTest {
 
     private RoomRepository roomRepository;
     private RoomService roomService;
+    private NotificationService notificationService;
 
     @BeforeEach
     void setUp() {
         roomRepository = mock(RoomRepository.class);
-        roomService = new RoomService(roomRepository);
+        notificationService = mock(NotificationService.class);
+        roomService = new RoomService(roomRepository, null, notificationService);
     }
 
     /**
@@ -335,6 +337,238 @@ class RoomServiceTest {
                 () -> roomService.updateNote(request));
 
         verify(roomRepository, never()).save(any());
+    }
+
+    // Crear calendario si la Sala no tiene uno
+    @Test
+    void shouldCreateCalendarWhenRoomHasNoCalendar() {
+
+        NoteRequest request = new NoteRequest();
+
+        setField(request, "roomId", "ROOM-123");
+        setField(request, "username", "Lucas");
+        setField(request, "noteTitle", "Nota");
+        setField(request, "content", "Contenido");
+
+        Room room = new Room("Sala Test", "Ivan");
+        setField(room, "id", "ROOM-123");
+
+        room.getParticipants().add("Lucas");
+
+        room.setCalendar(null);
+
+        when(roomRepository.findByRoomId("ROOM-123"))
+                .thenReturn(Optional.of(room));
+
+        roomService.createNote(request);
+
+        assertNotNull(room.getCalendar());
+        assertEquals(1, room.getCalendar().getNotes().size());
+
+        verify(roomRepository).save(room);
+    }
+
+    //Una nota está vinculada al calendario
+    @Test
+    void shouldAssociateCreatedNoteWithCalendar() {
+
+        NoteRequest request = new NoteRequest();
+
+        setField(request, "roomId", "ROOM-123");
+        setField(request, "username", "Lucas");
+        setField(request, "noteTitle", "Reunión");
+        setField(request, "content", "Viernes");
+
+        Room room = new Room("Sala Test", "Ivan");
+        setField(room, "id", "ROOM-123");
+
+        room.getParticipants().add("Lucas");
+
+        Calendar calendar = new Calendar();
+        room.setCalendar(calendar);
+
+        when(roomRepository.findByRoomId("ROOM-123"))
+                .thenReturn(Optional.of(room));
+
+        roomService.createNote(request);
+
+        Note note = calendar.getNotes().get(0);
+
+        assertSame(calendar, note.getCalendar());
+    }
+
+    //Una tarea está vinculada al calendario
+    @Test
+    void shouldAssociateTaskWithCalendar() {
+
+        Calendar calendar = new Calendar();
+
+        Room room = new Room("Sala Test","Ivan");
+
+        setField(room,"id","ROOM-123");
+
+        room.getParticipants().add("Lucas");
+
+        room.setCalendar(calendar);
+
+        TaskRequest request = new TaskRequest();
+
+        setField(request,"roomId","ROOM-123");
+        setField(request,"username","Lucas");
+        setField(request,"taskTitle","API");
+        setField(request,"description","REST");
+        setField(request,"startDate",new Date());
+        setField(request,"dueDate",new Date());
+
+        when(roomRepository.findByRoomId("ROOM-123"))
+                .thenReturn(Optional.of(room));
+
+        roomService.createTask(request);
+
+        Task task = calendar.getTasks().get(0);
+
+        assertSame(calendar, task.getCalendar());
+
+    }
+
+    //Agregar varias notas a un solo calendario
+    @Test
+    void shouldStoreMultipleNotesInSameCalendar() {
+
+        Room room = new Room("Sala Test", "Valen");
+        setField(room, "id", "ROOM-123");
+
+        room.getParticipants().add("Lucas");
+
+        Calendar calendar = new Calendar();
+        room.setCalendar(calendar);
+
+        when(roomRepository.findByRoomId("ROOM-123"))
+                .thenReturn(Optional.of(room));
+
+        NoteRequest request1 = new NoteRequest();
+        setField(request1,"roomId","ROOM-123");
+        setField(request1,"username","Lucas");
+        setField(request1,"noteTitle","Nota 1");
+        setField(request1,"content","Contenido 1");
+
+        NoteRequest request2 = new NoteRequest();
+        setField(request2,"roomId","ROOM-123");
+        setField(request2,"username","Lucas");
+        setField(request2,"noteTitle","Nota 2");
+        setField(request2,"content","Contenido 2");
+
+        roomService.createNote(request1);
+        roomService.createNote(request2);
+
+        assertEquals(2, calendar.getNotes().size());
+    }
+
+    //Si se elimina una nota, se elimina del calendario
+    @Test
+    void shouldRemoveNoteFromCalendarWhenDeletingNote() {
+
+        Calendar calendar = new Calendar();
+
+        Note note = new Note(
+                "Nota importante",
+                "Contenido",
+                "Lucas");
+
+        calendar.addNote(note);
+
+        Room room = new Room("Sala Test", "Valen");
+        setField(room, "id", "ROOM-123");
+
+        room.getParticipants().add("Lucas");
+        room.setCalendar(calendar);
+
+        when(roomRepository.findByRoomId("ROOM-123"))
+                .thenReturn(Optional.of(room));
+
+        NoteRequest request = new NoteRequest();
+
+        setField(request, "roomId", "ROOM-123");
+        setField(request, "username", "Lucas");
+        setField(request, "noteTitle", "Nota importante");
+
+        roomService.deleteNote(request);
+
+        assertEquals(0, calendar.getNotes().size());
+
+        verify(roomRepository).save(room);
+    }
+
+    /**
+     * CASO DE USO 6: Recibir notificaciones
+     */
+
+    //Se crea notificacion si la tarea está atrasada
+    @Test
+    void shouldCreateNotificationWhenTaskIsOverdue() {
+        Room room = new Room("Sala Test", "Valen");
+        room.setId("ROOM-123");
+        room.getParticipants().add("Ivan");
+        room.getParticipants().add("Dyssio");
+
+        when(roomRepository.findByRoomId("ROOM-123")).thenReturn(Optional.of(room));
+
+        TaskRequest request = new TaskRequest();
+        request.setRoomId("ROOM-123");
+        request.setUsername("Ivan");
+        request.setTaskTitle("Tarea atrasada");
+        request.setDescription("Esta tarea esta atrasada");
+        request.setDueDate(new Date(System.currentTimeMillis() - 86400000));
+
+        roomService.createTask(request);
+
+        verify(notificationService).createTaskNotification(any(Task.class), eq("ROOM-123"), eq("Ivan"));
+    }
+
+    //Si una tarea no está atrasada, no se crea notificacion
+    @Test
+    void shouldNotCreateNotificationWhenTaskIsNotOverdue() {
+        Room room = new Room("Sala Test", "Valen");
+        room.setId("ROOM-123");
+        room.getParticipants().add("Lucas");
+
+        when(roomRepository.findByRoomId("ROOM-123")).thenReturn(Optional.of(room));
+
+        TaskRequest request = new TaskRequest();
+        request.setRoomId("ROOM-123");
+        request.setUsername("Lucas");
+        request.setTaskTitle("Tarea futura");
+        request.setDescription("Esta tarea no esta atrasada");
+        request.setDueDate(new Date(System.currentTimeMillis() + 86400000));
+
+        roomService.createTask(request);
+
+        verify(notificationService, never()).createTaskNotification(any(Task.class), anyString(), anyString());
+    }
+
+    @Test
+    void shouldNotifyAllParticipantsWhenTaskIsOverdue() {
+        Room room = new Room("Sala Test", "Valen");
+        room.setId("ROOM-123");
+        room.getParticipants().add("Ivan");
+        room.getParticipants().add("Dyssio");
+        room.getParticipants().add("Valen");
+
+        when(roomRepository.findByRoomId("ROOM-123")).thenReturn(Optional.of(room));
+
+        TaskRequest request = new TaskRequest();
+        request.setRoomId("ROOM-123");
+        request.setUsername("Dyssio");
+        request.setTaskTitle("Tarea atrasada");
+        request.setDueDate(new Date(System.currentTimeMillis() - 86400000));
+
+        roomService.createTask(request);
+
+        verify(notificationService, times(3)).createTaskNotification(
+                any(Task.class),
+                eq("ROOM-123"),
+                anyString()
+        );
     }
 
     /**

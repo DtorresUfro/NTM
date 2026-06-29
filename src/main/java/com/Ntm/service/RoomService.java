@@ -25,18 +25,18 @@ public class RoomService {
 
     private final RoomRepository roomRepository;
     private final GoogleCalendarEventService googleCalendarService;
+    private final NotificationService notificationService;
 
     @Autowired(required = false)
     private SimpMessagingTemplate messagingTemplate;
 
     @Autowired
-    public RoomService(RoomRepository roomRepository, GoogleCalendarEventService googleCalendarService) {
+    public RoomService(RoomRepository roomRepository,
+                       GoogleCalendarEventService googleCalendarService,
+                       NotificationService notificationService) {
         this.roomRepository = roomRepository;
         this.googleCalendarService = googleCalendarService;
-    }
-
-    public RoomService(RoomRepository roomRepository) {
-        this(roomRepository, null);
+        this.notificationService = notificationService;
     }
 
     // ==========================================
@@ -283,6 +283,16 @@ public class RoomService {
         calendar.getTasks().add(task);
         roomRepository.save(room);
         publishRoomUpdate(room.getId());
+
+        if (task.isOverdue()) {
+            notificationService.createTaskNotification(task, room.getId(), task.getCreatedBy());
+            notificationService.createTaskNotification(task, room.getId(), room.getAdminName());
+            for (String participant : room.getParticipants()) {
+                if (!participant.equals(task.getCreatedBy()) && !participant.equals(room.getAdminName())) {
+                    notificationService.createTaskNotification(task, room.getId(), participant);
+                }
+            }
+        }
     }
 
     public void completeTask(TaskRequest request) {

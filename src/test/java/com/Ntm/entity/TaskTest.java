@@ -83,4 +83,13 @@ class TaskTest {
 
         assertFalse(task.isOverdue());
     }
+
+    @Test
+    void shouldSetAndGetGoogleEventId() {
+        Task task = new Task("Tarea", "Desc", new Date(), "Lucas", new Date(), false);
+
+        task.setGoogleEventId("event-123");
+
+        assertEquals("event-123", task.getGoogleEventId());
+    }
 }
