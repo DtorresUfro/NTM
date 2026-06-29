@@ -37,6 +37,12 @@
 
 	<properties>
 		<java.version>21</java.version>
+		<sonar.coverage.exclusions>
+			**/NtmApplication.java,
+			**/exception/**,
+			**/service/GoogleCalendarAuthService.java,
+			**/service/GoogleCalendarEventService.java
+		</sonar.coverage.exclusions>
 	</properties>
 
 	<dependencies>
@@ -52,6 +58,25 @@
 			<groupId>org.mockito</groupId>
 			<artifactId>mockito-core</artifactId>
 			<scope>test</scope>
+		</dependency>
+
+		<!-- GOOGLE CALENDAR -->
+		<dependency>
+			<groupId>com.google.api-client</groupId>
+			<artifactId>google-api-client</artifactId>
+			<version>2.6.0</version>
+		</dependency>
+
+		<dependency>
+			<groupId>com.google.oauth-client</groupId>
+			<artifactId>google-oauth-client-jetty</artifactId>
+			<version>1.36.0</version>
+		</dependency>
+
+		<dependency>
+			<groupId>com.google.apis</groupId>
+			<artifactId>google-api-services-calendar</artifactId>
+			<version>v3-rev20210804-1.32.1</version>
 		</dependency>
 
 		<!-- JACKSON -->
