@@ -125,6 +125,57 @@ class RoomControllerTest {
 
         verify(roomService).leaveRoom(any(), any());
     }
+
+    @Test
+    void shouldGetMembersSuccessfully() throws Exception {
+        when(roomService.getRoomMembers("ROOM-123"))
+                .thenReturn(List.of(new RoomMemberResponse("Valen", true, true)));
+
+        mockMvc.perform(get("/api/rooms/ROOM-123/members"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].username").value("Valen"));
+    }
+
+    @Test
+    void shouldReturnBadRequestWhenGettingMembersFails() throws Exception {
+        when(roomService.getRoomMembers("ROOM-123"))
+                .thenThrow(new RuntimeException("Sala no encontrada"));
+
+        mockMvc.perform(get("/api/rooms/ROOM-123/members"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void shouldMarkPresenceSuccessfully() throws Exception {
+        RemoveParticipantRequest request = new RemoveParticipantRequest();
+        request.setRoomId("ROOM-123");
+        request.setUsernameToRemove("Lucas");
+
+        mockMvc.perform(post("/api/rooms/presence")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(content().string("Usuario conectado en la sala."));
+
+        verify(roomService).markUserConnected("ROOM-123", "Lucas");
+    }
+
+    @Test
+    void shouldReturnBadRequestWhenMarkPresenceFails() throws Exception {
+        RemoveParticipantRequest request = new RemoveParticipantRequest();
+        request.setRoomId("ROOM-123");
+        request.setUsernameToRemove("Lucas");
+
+        doThrow(new RuntimeException("El usuario no pertenece a la sala."))
+                .when(roomService)
+                .markUserConnected("ROOM-123", "Lucas");
+
+        mockMvc.perform(post("/api/rooms/presence")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().string("El usuario no pertenece a la sala."));
+    }
     @Test
     void shouldCreateTaskSuccessfully() throws Exception {
         TaskRequest request = new TaskRequest();

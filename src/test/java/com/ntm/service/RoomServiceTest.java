@@ -8,6 +8,8 @@ import com.ntm.entity.Task;
 import com.ntm.repository.RoomRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 import java.util.Date;
 import java.util.List;
@@ -907,6 +909,41 @@ class RoomServiceTest {
         assertFalse(disconnected.isAdmin());
     }
 
+
+    @Test
+    void shouldMarkDisconnectedParticipantAsConnectedAndPublishUpdate() {
+        ObjectProvider<SimpMessagingTemplate> messagingTemplateProvider = mock(ObjectProvider.class);
+        SimpMessagingTemplate messagingTemplate = mock(SimpMessagingTemplate.class);
+        when(messagingTemplateProvider.getIfAvailable()).thenReturn(messagingTemplate);
+        RoomService serviceWithMessaging = new RoomService(roomRepository, null, notificationService, messagingTemplateProvider);
+
+        Room room = new Room("Sala", "Valen");
+        setField(room, "id", "ROOM-123");
+        room.getDisconnectedParticipants().add("Lucas");
+
+        when(roomRepository.findByRoomId("ROOM-123")).thenReturn(Optional.of(room));
+
+        serviceWithMessaging.markUserConnected("ROOM-123", "lucas");
+
+        assertTrue(room.getParticipants().contains("lucas"));
+        assertTrue(room.getDisconnectedParticipants().isEmpty());
+        verify(roomRepository).save(room);
+        verify(messagingTemplate).convertAndSend("/topic/rooms/ROOM-123", "updated");
+    }
+
+    @Test
+    void shouldRejectUnknownParticipantWhenMarkingPresence() {
+        Room room = new Room("Sala", "Valen");
+        setField(room, "id", "ROOM-123");
+
+        when(roomRepository.findByRoomId("ROOM-123")).thenReturn(Optional.of(room));
+
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> roomService.markUserConnected("ROOM-123", "Lucas"));
+
+        assertEquals("El usuario no pertenece a la sala.", exception.getMessage());
+        verify(roomRepository, never()).save(any(Room.class));
+    }
     //Un usuario abandona la sala
     @Test
     void shouldLeaveRoomSuccessfully() {
