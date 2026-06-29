@@ -13,6 +13,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
+import jakarta.servlet.ServletException;
 
 import java.util.Date;
 
@@ -25,6 +26,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ActiveProfiles("test")
 @Transactional
 class RoomIntegrationTest {
+    
     @Autowired
     private MockMvc mockMvc;
     @Autowired
@@ -37,7 +39,7 @@ class RoomIntegrationTest {
     void shouldCreateRoomEndToEnd() throws Exception {
         CreateRoomRequest request = new CreateRoomRequest();
         request.setRoomName("Sala Integracion");
-        request.setAdminName("Valen");
+        request.setAdminName("Ivan");
 
         mockMvc.perform(post("/api/rooms")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -48,6 +50,21 @@ class RoomIntegrationTest {
                 .andExpect(jsonPath("$.roomName").value("Sala Integracion"));
 
         assertEquals(1, roomRepository.findAll().size());
+    }
+
+    @Test
+    void shouldNotCreateRoomWhenNameIsEmpty() throws Exception {
+        CreateRoomRequest request = new CreateRoomRequest();
+        request.setRoomName("");
+        request.setAdminName("Valen");
+
+        assertThrows(ServletException.class, () ->
+                mockMvc.perform(post("/api/rooms")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+        );
+
+        assertEquals(0, roomRepository.count());
     }
 
     //CU2 Unirse a sala
@@ -75,6 +92,25 @@ class RoomIntegrationTest {
         assertTrue(updatedRoom.getParticipants().contains("Dyssio"));
     }
 
+    @Test
+    void shouldNotJoinRoomWithEmptyUsername() throws Exception {
+        Room room = new Room("Sala Test", "Valen");
+        roomRepository.save(room);
+
+        JoinRoomRequest request = new JoinRoomRequest();
+        request.setRoomId(room.getId());
+        request.setUsername("");
+
+        assertThrows(Exception.class, () ->
+                mockMvc.perform(post("/api/rooms/join")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+        );
+
+        Room updated = roomRepository.findByRoomId(room.getId()).orElseThrow();
+        assertEquals(1, updated.getParticipants().size());
+    }
+
     //CU3 Disolver sala
     @Test
     void shouldDeleteRoomEndToEnd() throws Exception {
@@ -95,6 +131,24 @@ class RoomIntegrationTest {
         assertTrue(roomRepository.findByRoomId(room.getId()).isEmpty());
     }
 
+    @Test
+    void shouldNotDeleteRoomWhenRequesterIsNotAdmin() throws Exception {
+
+        Room room = new Room("Sala", "Ivan");
+        roomRepository.save(room);
+
+        DeleteRoomRequest request = new DeleteRoomRequest();
+        request.setAdminName("Dyssio");
+
+        assertThrows(ServletException.class, () ->
+                mockMvc.perform(delete("/api/rooms/{roomId}", room.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+        );
+
+        assertTrue(roomRepository.findByRoomId(room.getId()).isPresent());
+    }
+
     //CU4 Acceder mediante masterKey
     @Test
     void shouldGrantAdminAccessEndToEnd() throws Exception {
@@ -112,6 +166,18 @@ class RoomIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.roomId").value(room.getId()))
                 .andExpect(jsonPath("$.adminName").value("Valen"));
+    }
+
+    @Test
+    void shouldRejectInvalidMasterKey() throws Exception {
+        AdminAccessRequest request = new AdminAccessRequest();
+        request.setMasterKey("incorrecta");
+
+        assertThrows(ServletException.class, () ->
+                mockMvc.perform(post("/api/rooms/validate-masterkey")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+        );
     }
 
     //CU5 Gestionar notas o avisos
@@ -164,12 +230,40 @@ class RoomIntegrationTest {
         assertTrue(room.getCalendar().getNotes().isEmpty());
     }
 
+    @Test
+    void shouldNotEditNoteCreatedByAnotherUser() throws Exception {
+        Room room = new Room("Sala", "Ivan");
+        room.addParticipant("Dyssio");
+        room.addParticipant("Valen");
+        roomRepository.save(room);
+
+        NoteRequest request = new NoteRequest();
+        request.setRoomId(room.getId());
+        request.setUsername("Dyssio");
+        request.setNoteTitle("Nota");
+        request.setContent("Contenido");
+
+        mockMvc.perform(post("/api/rooms/notes")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk());
+
+        request.setUsername("Valen");
+        request.setContent("Nuevo");
+
+        mockMvc.perform(put("/api/rooms/notes")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+    }
+
+
     //CU6 Recibir notificaciones
     @Test
     void shouldCreateNotificationWhenTaskIsOverdueEndToEnd() throws Exception {
         CreateRoomRequest roomRequest = new CreateRoomRequest();
         roomRequest.setRoomName("Sala Notificaciones");
-        roomRequest.setAdminName("Valen");
+        roomRequest.setAdminName("Ivan");
 
         String roomResponse = mockMvc.perform(post("/api/rooms")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -192,7 +286,7 @@ class RoomIntegrationTest {
 
         TaskRequest taskRequest = new TaskRequest();
         taskRequest.setRoomId(roomId);
-        taskRequest.setUsername("Valen");
+        taskRequest.setUsername("Ivan");
         taskRequest.setTaskTitle("Tarea atrasada");
         taskRequest.setDescription("Esta tarea esta atrasada");
         taskRequest.setDueDate(new Date(System.currentTimeMillis() - 86400000));
@@ -213,6 +307,40 @@ class RoomIntegrationTest {
                 .andExpect(jsonPath("$[0].targetUser").value("Lucas"))
                 .andExpect(jsonPath("$[0].roomMasterKey").value(roomId));
     }
+
+    @Test
+    void shouldNotCreateNotificationWhenTaskIsNotOverdue() throws Exception {
+        CreateRoomRequest roomRequest = new CreateRoomRequest();
+        roomRequest.setRoomName("Sala");
+        roomRequest.setAdminName("Ivan");
+
+        String json = mockMvc.perform(post("/api/rooms")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(roomRequest)))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        CreateRoomResponse room =
+                objectMapper.readValue(json, CreateRoomResponse.class);
+
+        TaskRequest task = new TaskRequest();
+        task.setRoomId(room.getRoomId());
+        task.setUsername("Ivan");
+        task.setTaskTitle("Futura");
+        task.setDescription("...");
+        task.setDueDate(new Date(System.currentTimeMillis()+86400000));
+
+        mockMvc.perform(post("/api/rooms/tasks")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(task)))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/notifications/" + room.getRoomId() + "/Valen"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+    }
+
 
     //CU7 Eliminar usuario por admin
     @Test
@@ -238,4 +366,28 @@ class RoomIntegrationTest {
 
         assertFalse(updatedRoom.getParticipants().contains("Dyssio"));
     }
+
+    @Test
+    void shouldNotAllowNonAdminToRemoveParticipant() throws Exception {
+        Room room = new Room("Sala", "Ivan");
+        room.addParticipant("Dyssio");
+        roomRepository.save(room);
+
+        RemoveParticipantRequest request =
+                new RemoveParticipantRequest();
+
+        request.setRoomId(room.getId());
+        request.setAdminName("Dyssio");
+        request.setUsernameToRemove("Ivan");
+
+        mockMvc.perform(post("/api/rooms/remove-participant")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+
+        Room updated = roomRepository.findByRoomId(room.getId()).orElseThrow();
+
+        assertTrue(updated.getParticipants().contains("Dyssio"));
+    }
+
 }
