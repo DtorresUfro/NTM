@@ -4,7 +4,7 @@ Este repositorio contiene el código fuente del backend para la aplicación **NT
 
 El sistema está construido bajo el ecosistema de `Java` y `Spring Boot`, siguiendo un diseño basado en capas para asegurar la mantenibilidad y el desacoplamiento de componentes.
 
-La aplicacion se puede reproducir con las instruccones a continuación, una vez levantado el proyecto puede comprobar las funcionalidades implementadas en su navegador usando `http://localhost:8080`.
+La aplicacion se puede reproducir con las instruccones a continuación, una vez levantado el proyecto puede comprobar las funcionalidades implementadas en su navegador usando `http://localhost:80`.
 
 ### Levantar el proyecto con *docker-compose*.
 * **Reproducir imagen en docker;** (Primera vez)
