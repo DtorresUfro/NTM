@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class GoogleCalendarAuthServiceTest {
 
-    //Verifica que el usuario no esté autenticado cuando no existen credenciales.
     @Test
     void shouldReturnFalseWhenNotAuthenticated() throws Exception {
 
@@ -13,7 +12,34 @@ class GoogleCalendarAuthServiceTest {
         assertFalse(service.isAuthenticated());
     }
 
-    //Verifica que no existan credenciales almacenadas cuando la autenticación aún no inició.
+    @Test
+    void shouldGenerateAuthorizationUrlWhenConfigured() {
+        GoogleCalendarAuthService service = new GoogleCalendarAuthService();
+
+        setField(service, "clientId", "test-client-id");
+        setField(service, "clientSecret", "test-client-secret");
+        setField(service, "redirectUri", "http://localhost:8080/callback");
+
+        service.init();
+        String url = service.getAuthorizationUrl();
+
+        assertNotNull(url);
+        assertTrue(url.contains("accounts.google.com"));
+        assertTrue(url.contains("client_id=test-client-id"));
+        assertTrue(url.contains("redirect_uri=http://localhost:8080/callback"));
+    }
+
+    @Test
+    void shouldNotFailWhenRedirectUriIsMissing() {
+        GoogleCalendarAuthService service = new GoogleCalendarAuthService();
+
+        setField(service, "clientId", "test-client-id");
+        setField(service, "clientSecret", "test-client-secret");
+        setField(service, "redirectUri", "");
+
+        assertDoesNotThrow(service::init);
+    }
+
     @Test
     void shouldReturnNullStoredCredentialsWhenFlowIsNull() throws Exception {
 
@@ -21,16 +47,13 @@ class GoogleCalendarAuthServiceTest {
         assertNull(service.getStoredCredentials());
     }
 
-    //Excepción al obtener la URL de autorización sin configurar Google Calendar
     @Test
     void shouldThrowExceptionWhenGoogleIsNotConfigured() {
-
         GoogleCalendarAuthService service = new GoogleCalendarAuthService();
         assertThrows(RuntimeException.class,
                 service::getAuthorizationUrl);
     }
 
-    //Excepción al intercambiar un código de autorización sin haber configurado Google Calendar.
     @Test
     void shouldThrowExceptionWhenExchangingWithoutConfiguration() {
 
@@ -39,7 +62,6 @@ class GoogleCalendarAuthServiceTest {
                 () -> service.exchangeCodeForCredential("codigo"));
     }
 
-    //El servicio de Google Calendar es nulo cuando no existen credenciales.
     @Test
     void shouldReturnNullCalendarServiceWhenNoCredentials() throws Exception {
 
@@ -47,7 +69,6 @@ class GoogleCalendarAuthServiceTest {
         assertNull(service.getCalendarService());
     }
 
-    //La inicialización no falla cuando las credenciales de Google no están configuradas.
     @Test
     void shouldNotInitializeFlowWhenClientConfigurationIsMissing() {
 
@@ -56,6 +77,17 @@ class GoogleCalendarAuthServiceTest {
         setField(service, "clientId", "");
         setField(service, "clientSecret", "");
         setField(service, "redirectUri", "");
+
+        assertDoesNotThrow(service::init);
+    }
+
+    @Test
+    void shouldNotFailWhenCredentialsArePartiallyConfigured() {
+        GoogleCalendarAuthService service = new GoogleCalendarAuthService();
+
+        setField(service, "clientId", "test-client-id");
+        setField(service, "clientSecret", "");
+        setField(service, "redirectUri", "http://localhost:8080/callback");
 
         assertDoesNotThrow(service::init);
     }

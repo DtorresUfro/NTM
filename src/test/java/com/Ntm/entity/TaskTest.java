@@ -61,7 +61,6 @@ class TaskTest {
 
         task.edit("Nuevo titulo", "Nueva descripcion", new Date());
 
-        // El metodo está vacío, simplemente verificamos que no lance excepción
         assertNotNull(task);
     }
 
@@ -71,7 +70,6 @@ class TaskTest {
                 new Date(), "Lucas", new Date(), false);
 
         task.delete();
-        // El metodo está vacío, sólo buscamos cobertura
         assertNotNull(task);
     }
 
@@ -80,6 +78,16 @@ class TaskTest {
         Date futureDate = new Date(System.currentTimeMillis() + 60_000);
         Task task = new Task("Titulo", "Descripcion",
                 futureDate, "Lucas", new Date(), false);
+
+        assertFalse(task.isOverdue());
+    }
+
+    @Test
+    void shouldDetectTaskIsNotOverdue() {
+        Task task = new Task();
+
+        task.setDueDate(
+                new Date(System.currentTimeMillis()+86400000));
 
         assertFalse(task.isOverdue());
     }

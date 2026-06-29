@@ -72,6 +72,7 @@ public class Room {
 
     public void setId(String id) { this.id = id; }
     public void setName(String name) { this.name = name; }
+    public void setParticipants(List<String> participants) { this.participants = participants; }
     public void setMasterKey(String masterKey) { this.masterKey = masterKey; }
     public void setAdminName(String adminName) { this.adminName = adminName; }
     public void setGoogleCalendarId(String googleCalendarId) { this.googleCalendarId = googleCalendarId; }

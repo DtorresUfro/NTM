@@ -781,6 +781,33 @@ class RoomServiceTest {
         verify(roomRepository).save(room);
     }
 
+    //Asignar tarea al calendario correspondiente
+    @Test
+    void shouldAssignTaskToCorrectCalendar() {
+        Room room = new Room("Sala Test", "Valen");
+        room.setId("ROOM-123");
+        room.getParticipants().add("Lucas");
+
+        Calendar calendar = new Calendar();
+        room.setCalendar(calendar);
+
+        when(roomRepository.findByRoomId("ROOM-123")).thenReturn(Optional.of(room));
+
+        TaskRequest request = new TaskRequest();
+        request.setRoomId("ROOM-123");
+        request.setUsername("Lucas");
+        request.setTaskTitle("Tarea 1");
+        request.setDescription("Descripcion");
+        request.setDueDate(new Date());
+
+        roomService.createTask(request);
+
+        assertEquals(1, calendar.getTasks().size());
+        Task task = calendar.getTasks().get(0);
+        assertEquals(calendar, task.getCalendar());
+        verify(roomRepository).save(room);
+    }
+
     //Obtener participantes de la sala
     @Test
     void shouldReturnParticipants() {

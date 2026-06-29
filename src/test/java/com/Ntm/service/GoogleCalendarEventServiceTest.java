@@ -35,7 +35,6 @@ class GoogleCalendarEventServiceTest {
         task.setCreatedBy("Lucas");
     }
 
-    //Excepcion cuando no hay autenticacion
     @Test
     void shouldThrowExceptionWhenNotAuthenticated() throws Exception {
         when(authService.getCalendarService()).thenReturn(null);
@@ -44,7 +43,6 @@ class GoogleCalendarEventServiceTest {
                 eventService.createEventFromTask(task, "calendar-123"));
     }
 
-    //Devuelve primary al crear una sala
     @Test
     void shouldReturnPrimaryCalendarId() throws Exception {
 
@@ -54,7 +52,14 @@ class GoogleCalendarEventServiceTest {
         assertEquals("primary", result);
     }
 
-    //Actualizar Event sin autenticación
+    @Test
+    void shouldThrowExceptionWhenCreatingEventWithoutAuthentication() throws Exception {
+        when(authService.getCalendarService()).thenReturn(null);
+
+        assertThrows(RuntimeException.class, () ->
+                eventService.createEventFromTask(task, "primary"));
+    }
+
     @Test
     void shouldThrowExceptionWhenUpdatingWithoutAuthentication() throws Exception {
 
@@ -67,7 +72,6 @@ class GoogleCalendarEventServiceTest {
                         "primary"));
     }
 
-    //Delete Event sin autenticación
     @Test
     void shouldThrowExceptionWhenDeletingWithoutAuthentication() throws Exception {
 
