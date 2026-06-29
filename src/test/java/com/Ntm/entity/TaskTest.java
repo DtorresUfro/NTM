@@ -93,6 +93,30 @@ class TaskTest {
     }
 
     @Test
+    void shouldReturnFalseWhenTaskIsCompletedEvenIfOverdue() {
+        Date pastDate = new Date(System.currentTimeMillis() - 86400000);
+        Task task = new Task("Tarea completada", "Descripcion", pastDate, "Lucas", new Date(), true);
+
+        assertFalse(task.isOverdue());
+    }
+
+    @Test
+    void shouldCreateTaskWithStartDateConstructor() {
+        Date startDate = new Date();
+        Date dueDate = new Date();
+        Task task = new Task("Tarea", "Descripcion", startDate, dueDate, "Lucas");
+
+        assertEquals("Tarea", task.getTitle());
+        assertEquals("Descripcion", task.getDescription());
+        assertEquals(startDate, task.getStartDate());
+        assertEquals(dueDate, task.getDueDate());
+        assertEquals("Lucas", task.getCreatedBy());
+        assertNotNull(task.getCreatedAt());
+        assertFalse(task.isCompleted());
+        assertTrue(task.isActive());
+    }
+
+    @Test
     void shouldSetAndGetGoogleEventId() {
         Task task = new Task("Tarea", "Desc", new Date(), "Lucas", new Date(), false);
 

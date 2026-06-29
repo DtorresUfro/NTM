@@ -10,6 +10,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.Date;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -867,6 +868,43 @@ class RoomServiceTest {
                 .thenReturn(Optional.of(room));
         assertEquals(1,
                 roomService.getNotesByRoom("ROOM-123").size());
+    }
+
+    //Obtener miembros
+    @Test
+    void shouldGetRoomMembers() {
+        String roomId = "ROOM-123";
+        Room room = new Room("Sala Test", "Valen");
+        room.setId(roomId);
+        room.getParticipants().add("Lucas");
+        room.getDisconnectedParticipants().add("Carlos");
+
+        when(roomRepository.findByRoomId(roomId)).thenReturn(Optional.of(room));
+
+        List<RoomMemberResponse> members = roomService.getRoomMembers(roomId);
+
+        assertEquals(3, members.size());
+
+        RoomMemberResponse admin = members.stream()
+                .filter(RoomMemberResponse::isAdmin)
+                .findFirst()
+                .orElseThrow();
+        assertEquals("Valen", admin.getUsername());
+        assertTrue(admin.isConnected());
+
+        RoomMemberResponse connected = members.stream()
+                .filter(m -> m.getUsername().equals("Lucas"))
+                .findFirst()
+                .orElseThrow();
+        assertTrue(connected.isConnected());
+        assertFalse(connected.isAdmin());
+
+        RoomMemberResponse disconnected = members.stream()
+                .filter(m -> m.getUsername().equals("Carlos"))
+                .findFirst()
+                .orElseThrow();
+        assertFalse(disconnected.isConnected());
+        assertFalse(disconnected.isAdmin());
     }
 
     //Un usuario abandona la sala
