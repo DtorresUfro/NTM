@@ -1,0 +1,44 @@
+:root {
+    --color-page-bg: #eaf3fa;
+    --color-text: #2b455e;
+    --color-primary: #559ef6;
+    --color-primary-hover: #448cf0;
+    --color-primary-soft: #7cb7f9;
+    --color-secondary-soft: #d9e5ef;
+    --color-border: #ccc;
+    --color-border-soft: #b8c7d9;
+    --color-white: #fff;
+    --color-error: #e74c3c;
+    --color-success: #2ecc71;
+    --color-warning-bg: #fff3cd;
+    --color-warning-border: #ffeeba;
+    --color-warning-text: #856404;
+    --font-sans: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html {
+    -webkit-text-size-adjust: 100%;
+}
+
+body {
+    margin: 0;
+    min-height: 100vh;
+    background-color: var(--color-page-bg);
+    color: var(--color-text);
+    font-family: var(--font-sans);
+}
+
+button,
+input,
+textarea,
+select {
+    font: inherit;
+}
+
+a {
+    color: inherit;
+}
