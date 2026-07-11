@@ -2,6 +2,7 @@ package com.ntm.entity;
 
 import org.junit.jupiter.api.Test;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -34,5 +35,26 @@ class RoomTest {
 
         assertEquals(2,
                 room.getParticipants().size());
+    }
+
+    @Test
+    void shouldInitializeCreationAndActivityDates() {
+        Room room = new Room("Sala", "Ivan");
+
+        assertNotNull(room.getCreatedAt());
+        assertNotNull(room.getLastActivity());
+        assertEquals(room.getCreatedAt(), room.getLastActivity());
+    }
+
+    @Test
+    void shouldUpdateLastActivityWhenRoomHasActivity() {
+        Room room = new Room("Sala", "Ivan");
+        LocalDateTime previousActivity = LocalDateTime.of(2024, 1, 1, 0, 0);
+        room.setLastActivity(previousActivity);
+
+        room.markActivity();
+
+        assertTrue(room.getLastActivity().isAfter(previousActivity));
+        assertEquals("Sala", room.getName());
     }
 }

@@ -77,7 +77,7 @@ public class RoomService {
 
         room.getDisconnectedParticipants().removeIf(participant -> participant.equalsIgnoreCase(normalizedUsername));
         room.getParticipants().add(normalizedUsername);
-        roomRepository.save(room);
+        saveRoomWithActivity(room);
         publishRoomUpdate(room.getId());
 
         return new JoinRoomResponse(room.getId(), room.getName(), getRoomParticipants(room.getId()));
@@ -113,7 +113,7 @@ public class RoomService {
         response.setAdminName(room.getAdminName());
 
         room.getDisconnectedParticipants().removeIf(participant -> participant.equalsIgnoreCase(room.getAdminName()));
-        roomRepository.save(room);
+        saveRoomWithActivity(room);
         publishRoomUpdate(room.getId());
         return response;
     }
@@ -140,7 +140,7 @@ public class RoomService {
 
         removeUserContent(room, usernameToRemove);
 
-        roomRepository.save(room);
+        saveRoomWithActivity(room);
         publishRoomUpdate(room.getId());
     }
 
@@ -159,7 +159,7 @@ public class RoomService {
             room.getParticipants().add(normalizedUsername);
         }
 
-        roomRepository.save(room);
+        saveRoomWithActivity(room);
         publishRoomUpdate(room.getId());
     }
 
@@ -179,7 +179,7 @@ public class RoomService {
             room.getDisconnectedParticipants().add(normalizedUsername);
         }
 
-        roomRepository.save(room);
+        saveRoomWithActivity(room);
         publishRoomUpdate(room.getId());
     }
     public List<RoomMemberResponse> getRoomMembers(String roomId) {
@@ -283,7 +283,7 @@ public class RoomService {
         }
 
         calendar.getTasks().add(task);
-        roomRepository.save(room);
+        saveRoomWithActivity(room);
         publishRoomUpdate(room.getId());
 
         if (task.isOverdue()) {
@@ -309,7 +309,7 @@ public class RoomService {
         task.setCompleted(!task.isCompleted());
 
         syncTaskUpdate(room, task);
-        roomRepository.save(room);
+        saveRoomWithActivity(room);
         publishRoomUpdate(room.getId());
     }
 
@@ -334,7 +334,7 @@ public class RoomService {
         }
 
         syncTaskUpdate(room, task);
-        roomRepository.save(room);
+        saveRoomWithActivity(room);
         publishRoomUpdate(room.getId());
     }
 
@@ -355,7 +355,7 @@ public class RoomService {
             }
         }
 
-        roomRepository.save(room);
+        saveRoomWithActivity(room);
         publishRoomUpdate(room.getId());
     }
 
@@ -391,7 +391,7 @@ public class RoomService {
         note.setCalendar(calendar);
 
         calendar.getNotes().add(note);
-        roomRepository.save(room);
+        saveRoomWithActivity(room);
         publishRoomUpdate(room.getId());
     }
 
@@ -409,7 +409,7 @@ public class RoomService {
             note.editContent(request.getContent());
         }
 
-        roomRepository.save(room);
+        saveRoomWithActivity(room);
         publishRoomUpdate(room.getId());
     }
 
@@ -422,7 +422,7 @@ public class RoomService {
 
         room.getCalendar().getNotes().remove(note);
         note.setCalendar(null);
-        roomRepository.save(room);
+        saveRoomWithActivity(room);
         publishRoomUpdate(room.getId());
     }
 
@@ -572,6 +572,10 @@ public class RoomService {
         }
     }
 
+    private Room saveRoomWithActivity(Room room) {
+        room.markActivity();
+        return roomRepository.save(room);
+    }
 
     private void publishRoomUpdate(String roomId) {
         if (messagingTemplate != null && roomId != null) {
