@@ -24,6 +24,8 @@ import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Function;
+import java.util.function.Predicate;
 
 @Service
 public class RoomService {
@@ -182,7 +184,7 @@ public class RoomService {
 
         List<RoomMemberResponse> members = new ArrayList<>();
 
-        if (room.getAdminName() != null && !room.getAdminName().trim().isEmpty()) {
+        if (hasAdminName(room)) {
             boolean adminConnected = !containsIgnoreCase(room.getDisconnectedParticipants(), room.getAdminName());
             members.add(new RoomMemberResponse(room.getAdminName(), true, adminConnected));
         }
@@ -211,7 +213,7 @@ public class RoomService {
 
         List<String> allMembers = new ArrayList<>();
 
-        if (room.getAdminName() != null && !room.getAdminName().trim().isEmpty()) {
+        if (hasAdminName(room)) {
             allMembers.add(room.getAdminName() + " (Admin)");
         }
 
@@ -224,15 +226,7 @@ public class RoomService {
     // ==========================================
 
     public List<Task> getTasksByRoom(String roomId) {
-        Room room = findRoomById(roomId);
-
-        if (room.getCalendar() == null) {
-            return new ArrayList<>();
-        }
-
-        return room.getCalendar().getTasks().stream()
-                .filter(Task::isActive)
-                .toList();
+        return getActiveCalendarItems(roomId, Calendar::getTasks, Task::isActive);
     }
 
     public void createTask(TaskRequest request) {
@@ -330,15 +324,7 @@ public class RoomService {
     // ==========================================
 
     public List<Note> getNotesByRoom(String roomId) {
-        Room room = findRoomById(roomId);
-
-        if (room.getCalendar() == null) {
-            return new ArrayList<>();
-        }
-
-        return room.getCalendar().getNotes().stream()
-                .filter(Note::isActive)
-                .toList();
+        return getActiveCalendarItems(roomId, Calendar::getNotes, Note::isActive);
     }
 
     public void createNote(NoteRequest request) {
@@ -425,6 +411,22 @@ public class RoomService {
         }
         return room.getParticipants().stream()
                 .filter(participant -> !participant.equalsIgnoreCase(room.getAdminName()))
+                .toList();
+    }
+
+    private boolean hasAdminName(Room room) {
+        return room.getAdminName() != null && !room.getAdminName().trim().isEmpty();
+    }
+
+    private <T> List<T> getActiveCalendarItems(String roomId,
+                                               Function<Calendar, List<T>> itemProvider,
+                                               Predicate<T> activePredicate) {
+        Room room = findRoomById(roomId);
+        if (room.getCalendar() == null) {
+            return new ArrayList<>();
+        }
+        return itemProvider.apply(room.getCalendar()).stream()
+                .filter(activePredicate)
                 .toList();
     }
 
@@ -549,7 +551,7 @@ public class RoomService {
     }
 
     private void syncTaskUpdate(Room room, Task task) {
-        if (googleCalendarService != null && room.getGoogleCalendarId() != null && task.getGoogleEventId() != null) {
+        if (hasGoogleCalendarEvent(room, task)) {
             try {
                 googleCalendarService.updateEventFromTask(task.getGoogleEventId(), task, room.getGoogleCalendarId());
             } catch (GoogleCalendarException e) {
@@ -559,13 +561,19 @@ public class RoomService {
     }
 
     private void deleteGoogleCalendarEventIfPresent(Room room, Task task) {
-        if (googleCalendarService != null && room.getGoogleCalendarId() != null && task.getGoogleEventId() != null) {
+        if (hasGoogleCalendarEvent(room, task)) {
             try {
                 googleCalendarService.deleteEvent(task.getGoogleEventId(), room.getGoogleCalendarId());
             } catch (GoogleCalendarException e) {
                 LOGGER.warn("Error al eliminar la tarea en Google Calendar: {}", e.getMessage());
             }
         }
+    }
+
+    private boolean hasGoogleCalendarEvent(Room room, Task task) {
+        return googleCalendarService != null
+                && room.getGoogleCalendarId() != null
+                && task.getGoogleEventId() != null;
     }
 
     private Room saveRoomWithActivity(Room room) {
