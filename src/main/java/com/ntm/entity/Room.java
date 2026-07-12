@@ -46,22 +46,10 @@ public class Room {
         this.adminName = adminName;
         this.id = generateJoinId();
         this.masterKey = generateMasterKey();
-        LocalDateTime now = LocalDateTime.now();
-        this.createdAt = now;
-        this.lastActivity = now;
+        this.createdAt = LocalDateTime.now();
+        this.lastActivity = LocalDateTime.now();
         this.participants.add(adminName);
         this.googleCalendarId = null;
-    }
-
-    @PrePersist
-    private void prePersist() {
-        LocalDateTime now = LocalDateTime.now();
-        if (this.createdAt == null) {
-            this.createdAt = now;
-        }
-        if (this.lastActivity == null) {
-            this.lastActivity = now;
-        }
     }
 
     public String generateJoinId() {
@@ -78,8 +66,6 @@ public class Room {
     public String getName() { return name; }
     public List<String> getParticipants() { return participants; }
     public List<String> getDisconnectedParticipants() { return disconnectedParticipants; }
-    public LocalDateTime getCreatedAt() { return createdAt; }
-    public LocalDateTime getLastActivity() { return lastActivity; }
     public String getAdminName() { return adminName; }
     public String getGoogleCalendarId() { return googleCalendarId; }
     public Calendar getCalendar() { return calendar; }
@@ -88,8 +74,6 @@ public class Room {
     public void setName(String name) { this.name = name; }
     public void setParticipants(List<String> participants) { this.participants = participants; }
     public void setMasterKey(String masterKey) { this.masterKey = masterKey; }
-    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
-    public void setLastActivity(LocalDateTime lastActivity) { this.lastActivity = lastActivity; }
     public void setAdminName(String adminName) { this.adminName = adminName; }
     public void setGoogleCalendarId(String googleCalendarId) { this.googleCalendarId = googleCalendarId; }
     public void setCalendar(Calendar calendar) { this.calendar = calendar; }
@@ -97,10 +81,6 @@ public class Room {
 
     public void addParticipant(String name) {
         this.participants.add(name);
-        markActivity();
-    }
-
-    public void markActivity() {
         this.lastActivity = LocalDateTime.now();
     }
 }

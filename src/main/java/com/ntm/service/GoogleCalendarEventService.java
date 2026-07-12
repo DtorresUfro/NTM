@@ -29,7 +29,20 @@ public class GoogleCalendarEventService {
 
     public Event createEventFromTask(Task task, String calendarId) {
         com.google.api.services.calendar.Calendar service = getCalendarService();
-        Event event = buildEventFromTask(task);
+
+        Event event = new Event()
+                .setSummary(task.getTitle())
+                .setDescription(task.getDescription());
+
+        if (task.getDueDate() != null) {
+            Date dueDate = task.getDueDate();
+            EventDateTime start = new EventDateTime()
+                    .setDateTime(new com.google.api.client.util.DateTime(dueDate))
+                    .setTimeZone(ZoneId.systemDefault().toString());
+
+            event.setStart(start);
+            event.setEnd(start);
+        }
 
         try {
             Event created = service.events()
@@ -48,7 +61,18 @@ public class GoogleCalendarEventService {
     }
 
     public Event updateEventFromTask(String eventId, Task task, String calendarId) {
-        Event event = buildEventFromTask(task);
+        Event event = new Event()
+                .setSummary(task.getTitle())
+                .setDescription(task.getDescription());
+
+        if (task.getDueDate() != null) {
+            EventDateTime dateTime = new EventDateTime()
+                    .setDateTime(new com.google.api.client.util.DateTime(task.getDueDate()))
+                    .setTimeZone(ZoneId.systemDefault().toString());
+
+            event.setStart(dateTime);
+            event.setEnd(dateTime);
+        }
 
         try {
             return getCalendarService()
@@ -69,25 +93,5 @@ public class GoogleCalendarEventService {
         } catch (IOException e) {
             throw new GoogleCalendarException("No se pudo eliminar el evento en Google Calendar.", e);
         }
-    }
-
-    private Event buildEventFromTask(Task task) {
-        Event event = new Event()
-                .setSummary(task.getTitle())
-                .setDescription(task.getDescription());
-
-        if (task.getDueDate() != null) {
-            EventDateTime eventDateTime = buildEventDateTime(task.getDueDate());
-            event.setStart(eventDateTime);
-            event.setEnd(eventDateTime);
-        }
-
-        return event;
-    }
-
-    private EventDateTime buildEventDateTime(Date date) {
-        return new EventDateTime()
-                .setDateTime(new com.google.api.client.util.DateTime(date))
-                .setTimeZone(ZoneId.systemDefault().toString());
     }
 }

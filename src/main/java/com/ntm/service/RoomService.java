@@ -24,8 +24,6 @@ import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
 import java.util.Objects;
-import java.util.function.Function;
-import java.util.function.Predicate;
 
 @Service
 public class RoomService {
@@ -67,7 +65,8 @@ public class RoomService {
     }
 
     public JoinRoomResponse joinRoom(JoinRoomRequest request) {
-        Room room = findRoomById(request.getRoomId(), "La sala no existe o el ID es incorrecto");
+        Room room = roomRepository.findByRoomId(request.getRoomId())
+                .orElseThrow(() -> new RoomNotFoundException("La sala no existe o el ID es incorrecto"));
 
         String normalizedUsername = normalizeRequiredText(request.getUsername(), REQUIRED_USER);
 
@@ -78,14 +77,15 @@ public class RoomService {
 
         room.getDisconnectedParticipants().removeIf(participant -> participant.equalsIgnoreCase(normalizedUsername));
         room.getParticipants().add(normalizedUsername);
-        saveRoomWithActivity(room);
+        roomRepository.save(room);
         publishRoomUpdate(room.getId());
 
         return new JoinRoomResponse(room.getId(), room.getName(), getRoomParticipants(room.getId()));
     }
 
     public DeleteRoomResponse deleteRoom(String roomId, DeleteRoomRequest request) {
-        Room room = findRoomById(roomId);
+        Room room = roomRepository.findByRoomId(roomId)
+                .orElseThrow(() -> new RoomNotFoundException(ROOM_NOT_FOUND));
 
         if (!room.getAdminName().equalsIgnoreCase(request.getAdminName())) {
             throw new UnauthorizedRoomActionException("Solo el administrador puede eliminar esta sala.");
@@ -113,13 +113,14 @@ public class RoomService {
         response.setAdminName(room.getAdminName());
 
         room.getDisconnectedParticipants().removeIf(participant -> participant.equalsIgnoreCase(room.getAdminName()));
-        saveRoomWithActivity(room);
+        roomRepository.save(room);
         publishRoomUpdate(room.getId());
         return response;
     }
 
     public void removeParticipant(RemoveParticipantRequest request) {
-        Room room = findRoomById(request.getRoomId());
+        Room room = roomRepository.findByRoomId(request.getRoomId())
+                .orElseThrow(() -> new RoomNotFoundException(ROOM_NOT_FOUND));
 
 
         if (!room.getAdminName().equalsIgnoreCase(request.getAdminName())) {
@@ -139,12 +140,13 @@ public class RoomService {
 
         removeUserContent(room, usernameToRemove);
 
-        saveRoomWithActivity(room);
+        roomRepository.save(room);
         publishRoomUpdate(room.getId());
     }
 
     public void markUserConnected(String roomId, String username) {
-        Room room = findRoomById(roomId);
+        Room room = roomRepository.findByRoomId(roomId)
+                .orElseThrow(() -> new RoomNotFoundException(ROOM_NOT_FOUND));
 
         String normalizedUsername = normalizeRequiredText(username, REQUIRED_USER);
         if (normalizedUsername.equalsIgnoreCase(room.getAdminName())) {
@@ -157,13 +159,14 @@ public class RoomService {
             room.getParticipants().add(normalizedUsername);
         }
 
-        saveRoomWithActivity(room);
+        roomRepository.save(room);
         publishRoomUpdate(room.getId());
     }
 
 
     public void leaveRoom(String roomId, String username) {
-        Room room = findRoomById(roomId);
+        Room room = roomRepository.findByRoomId(roomId)
+                .orElseThrow(() -> new RoomNotFoundException(ROOM_NOT_FOUND));
 
         String normalizedUsername = Objects.requireNonNull(normalizeRequiredText(username, REQUIRED_USER));
         boolean removed = room.getParticipants().removeIf(p -> p.equalsIgnoreCase(normalizedUsername));
@@ -176,21 +179,26 @@ public class RoomService {
             room.getDisconnectedParticipants().add(normalizedUsername);
         }
 
-        saveRoomWithActivity(room);
+        roomRepository.save(room);
         publishRoomUpdate(room.getId());
     }
     public List<RoomMemberResponse> getRoomMembers(String roomId) {
-        Room room = findRoomById(roomId, "La sala no existe");
+        Room room = roomRepository.findByRoomId(roomId)
+                .orElseThrow(() -> new RoomNotFoundException("La sala no existe"));
 
         List<RoomMemberResponse> members = new ArrayList<>();
 
-        if (hasAdminName(room)) {
+        if (room.getAdminName() != null && !room.getAdminName().trim().isEmpty()) {
             boolean adminConnected = !containsIgnoreCase(room.getDisconnectedParticipants(), room.getAdminName());
             members.add(new RoomMemberResponse(room.getAdminName(), true, adminConnected));
         }
 
-        for (String participant : getNonAdminParticipants(room)) {
-            members.add(new RoomMemberResponse(participant, false, true));
+        if (room.getParticipants() != null) {
+            for (String participant : room.getParticipants()) {
+                if (!participant.equalsIgnoreCase(room.getAdminName())) {
+                    members.add(new RoomMemberResponse(participant, false, true));
+                }
+            }
         }
 
         if (room.getDisconnectedParticipants() != null) {
@@ -209,15 +217,22 @@ public class RoomService {
     }
 
     public List<String> getRoomParticipants(String roomId) {
-        Room room = findRoomById(roomId, "La sala no existe");
+        Room room = roomRepository.findByRoomId(roomId)
+                .orElseThrow(() -> new RoomNotFoundException("La sala no existe"));
 
         List<String> allMembers = new ArrayList<>();
 
-        if (hasAdminName(room)) {
+        if (room.getAdminName() != null && !room.getAdminName().trim().isEmpty()) {
             allMembers.add(room.getAdminName() + " (Admin)");
         }
 
-        allMembers.addAll(getNonAdminParticipants(room));
+        if (room.getParticipants() != null) {
+            for (String participant : room.getParticipants()) {
+                if (!participant.equalsIgnoreCase(room.getAdminName())) {
+                    allMembers.add(participant);
+                }
+            }
+        }
         return allMembers;
     }
 
@@ -226,11 +241,23 @@ public class RoomService {
     // ==========================================
 
     public List<Task> getTasksByRoom(String roomId) {
-        return getActiveCalendarItems(roomId, Calendar::getTasks, Task::isActive);
+        Room room = roomRepository.findByRoomId(roomId)
+                .orElseThrow(() -> new RoomNotFoundException(ROOM_NOT_FOUND));
+
+        if (room.getCalendar() == null) {
+            return new ArrayList<>();
+        }
+
+        return room.getCalendar().getTasks().stream()
+                .filter(Task::isActive)
+                .toList();
     }
 
     public void createTask(TaskRequest request) {
-        Room room = findRoomAndValidateParticipant(request.getRoomId(), request.getUsername());
+        Room room = roomRepository.findByRoomId(request.getRoomId())
+                .orElseThrow(() -> new RoomNotFoundException(ROOM_NOT_FOUND));
+
+        validateParticipant(room, request.getUsername());
         validateRequiredText(request.getTaskTitle(), "El titulo de la tarea es obligatorio");
 
         Calendar calendar = ensureCalendar(room);
@@ -256,7 +283,7 @@ public class RoomService {
         }
 
         calendar.getTasks().add(task);
-        saveRoomWithActivity(room);
+        roomRepository.save(room);
         publishRoomUpdate(room.getId());
 
         if (task.isOverdue()) {
@@ -271,7 +298,8 @@ public class RoomService {
     }
 
     public void completeTask(TaskRequest request) {
-        Room room = findRoomById(request.getRoomId());
+        Room room = roomRepository.findByRoomId(request.getRoomId())
+                .orElseThrow(() -> new RoomNotFoundException(ROOM_NOT_FOUND));
 
         if (request.getUsername() != null && !request.getUsername().trim().isEmpty()) {
             validateParticipant(room, request.getUsername());
@@ -281,13 +309,16 @@ public class RoomService {
         task.setCompleted(!task.isCompleted());
 
         syncTaskUpdate(room, task);
-        saveRoomWithActivity(room);
+        roomRepository.save(room);
         publishRoomUpdate(room.getId());
     }
 
     public void updateTask(TaskRequest request) {
-        Room room = findRoomById(request.getRoomId());
-        Task task = findAuthorizedTask(room, request, "No tienes permisos para editar esta tarea");
+        Room room = roomRepository.findByRoomId(request.getRoomId())
+                .orElseThrow(() -> new RoomNotFoundException(ROOM_NOT_FOUND));
+
+        Task task = findActiveTask(room, request);
+        validateOwnerOrAdmin(room, task.getCreatedBy(), request.getUsername(), "No tienes permisos para editar esta tarea");
 
         if (request.getTaskTitle() != null && !request.getTaskTitle().trim().isEmpty()) {
             task.setTitle(request.getTaskTitle().trim());
@@ -303,19 +334,28 @@ public class RoomService {
         }
 
         syncTaskUpdate(room, task);
-        saveRoomWithActivity(room);
+        roomRepository.save(room);
         publishRoomUpdate(room.getId());
     }
 
     public void deleteTask(TaskRequest request) {
-        Room room = findRoomById(request.getRoomId());
-        Task task = findAuthorizedTask(room, request, "No tienes permisos para eliminar esta tarea");
+        Room room = roomRepository.findByRoomId(request.getRoomId())
+                .orElseThrow(() -> new RoomNotFoundException(ROOM_NOT_FOUND));
+
+        Task task = findActiveTask(room, request);
+        validateOwnerOrAdmin(room, task.getCreatedBy(), request.getUsername(), "No tienes permisos para eliminar esta tarea");
 
         task.delete();
 
-        deleteGoogleCalendarEventIfPresent(room, task);
+        if (googleCalendarService != null && room.getGoogleCalendarId() != null && task.getGoogleEventId() != null) {
+            try {
+                googleCalendarService.deleteEvent(task.getGoogleEventId(), room.getGoogleCalendarId());
+            } catch (GoogleCalendarException e) {
+                LOGGER.warn("Error al eliminar la tarea en Google Calendar: {}", e.getMessage());
+            }
+        }
 
-        saveRoomWithActivity(room);
+        roomRepository.save(room);
         publishRoomUpdate(room.getId());
     }
 
@@ -324,11 +364,23 @@ public class RoomService {
     // ==========================================
 
     public List<Note> getNotesByRoom(String roomId) {
-        return getActiveCalendarItems(roomId, Calendar::getNotes, Note::isActive);
+        Room room = roomRepository.findByRoomId(roomId)
+                .orElseThrow(() -> new RoomNotFoundException(ROOM_NOT_FOUND));
+
+        if (room.getCalendar() == null) {
+            return new ArrayList<>();
+        }
+
+        return room.getCalendar().getNotes().stream()
+                .filter(Note::isActive)
+                .toList();
     }
 
     public void createNote(NoteRequest request) {
-        Room room = findRoomAndValidateParticipant(request.getRoomId(), request.getUsername());
+        Room room = roomRepository.findByRoomId(request.getRoomId())
+                .orElseThrow(() -> new RoomNotFoundException(ROOM_NOT_FOUND));
+
+        validateParticipant(room, request.getUsername());
         validateRequiredText(request.getNoteTitle(), "El titulo de la nota es obligatorio");
         validateRequiredText(request.getContent(), "El contenido de la nota es obligatorio");
 
@@ -339,13 +391,16 @@ public class RoomService {
         note.setCalendar(calendar);
 
         calendar.getNotes().add(note);
-        saveRoomWithActivity(room);
+        roomRepository.save(room);
         publishRoomUpdate(room.getId());
     }
 
     public void updateNote(NoteRequest request) {
-        Room room = findRoomById(request.getRoomId());
-        Note note = findAuthorizedNote(room, request, "No tienes permisos para editar esta nota");
+        Room room = roomRepository.findByRoomId(request.getRoomId())
+                .orElseThrow(() -> new RoomNotFoundException(ROOM_NOT_FOUND));
+
+        Note note = findActiveNote(room, request);
+        validateOwnerOrAdmin(room, note.getCreatedBy(), request.getUsername(), "No tienes permisos para editar esta nota");
 
         if (request.getNoteTitle() != null && !request.getNoteTitle().trim().isEmpty()) {
             note.setTitle(request.getNoteTitle().trim());
@@ -354,38 +409,26 @@ public class RoomService {
             note.editContent(request.getContent());
         }
 
-        saveRoomWithActivity(room);
+        roomRepository.save(room);
         publishRoomUpdate(room.getId());
     }
 
     public void deleteNote(NoteRequest request) {
-        Room room = findRoomById(request.getRoomId());
-        Note note = findAuthorizedNote(room, request, "No tienes permisos para eliminar esta nota");
+        Room room = roomRepository.findByRoomId(request.getRoomId())
+                .orElseThrow(() -> new RoomNotFoundException(ROOM_NOT_FOUND));
+
+        Note note = findActiveNote(room, request);
+        validateOwnerOrAdmin(room, note.getCreatedBy(), request.getUsername(), "No tienes permisos para eliminar esta nota");
 
         room.getCalendar().getNotes().remove(note);
         note.setCalendar(null);
-        saveRoomWithActivity(room);
+        roomRepository.save(room);
         publishRoomUpdate(room.getId());
     }
 
     // ==========================================
     // VALIDACIONES PRIVADAS
     // ==========================================
-
-    private Room findRoomById(String roomId) {
-        return findRoomById(roomId, ROOM_NOT_FOUND);
-    }
-
-    private Room findRoomById(String roomId, String errorMessage) {
-        return roomRepository.findByRoomId(roomId)
-                .orElseThrow(() -> new RoomNotFoundException(errorMessage));
-    }
-
-    private Room findRoomAndValidateParticipant(String roomId, String username) {
-        Room room = findRoomById(roomId);
-        validateParticipant(room, username);
-        return room;
-    }
 
     private void validateRoomData(CreateRoomRequest request) {
         if (request.getRoomName() == null || request.getRoomName().trim().isEmpty()) {
@@ -403,31 +446,6 @@ public class RoomService {
             room.setCalendar(calendar);
         }
         return room.getCalendar();
-    }
-
-    private List<String> getNonAdminParticipants(Room room) {
-        if (room.getParticipants() == null) {
-            return List.of();
-        }
-        return room.getParticipants().stream()
-                .filter(participant -> !participant.equalsIgnoreCase(room.getAdminName()))
-                .toList();
-    }
-
-    private boolean hasAdminName(Room room) {
-        return room.getAdminName() != null && !room.getAdminName().trim().isEmpty();
-    }
-
-    private <T> List<T> getActiveCalendarItems(String roomId,
-                                               Function<Calendar, List<T>> itemProvider,
-                                               Predicate<T> activePredicate) {
-        Room room = findRoomById(roomId);
-        if (room.getCalendar() == null) {
-            return new ArrayList<>();
-        }
-        return itemProvider.apply(room.getCalendar()).stream()
-                .filter(activePredicate)
-                .toList();
     }
 
     private void validateParticipant(Room room, String username) {
@@ -466,7 +484,13 @@ public class RoomService {
                 .filter(task -> task.getCreatedBy() != null && task.getCreatedBy().equalsIgnoreCase(normalizedUsername))
                 .toList();
         for (Task task : tasksToRemove) {
-            deleteGoogleCalendarEventIfPresent(room, task);
+            if (googleCalendarService != null && room.getGoogleCalendarId() != null && task.getGoogleEventId() != null) {
+                try {
+                    googleCalendarService.deleteEvent(task.getGoogleEventId(), room.getGoogleCalendarId());
+                } catch (GoogleCalendarException e) {
+                    LOGGER.warn("Error al eliminar la tarea en Google Calendar: {}", e.getMessage());
+                }
+            }
             room.getCalendar().getTasks().remove(task);
             task.setCalendar(null);
         }
@@ -519,12 +543,6 @@ public class RoomService {
         return request.getNoteTitle() != null && note.getTitle().equalsIgnoreCase(request.getNoteTitle());
     }
 
-    private Task findAuthorizedTask(Room room, TaskRequest request, String errorMessage) {
-        Task task = findActiveTask(room, request);
-        validateOwnerOrAdmin(room, task.getCreatedBy(), request.getUsername(), errorMessage);
-        return task;
-    }
-
     private Task findActiveTask(Room room, TaskRequest request) {
         if (room.getCalendar() == null) {
             throw new InvalidRequestException("Tarea no encontrada en la sala");
@@ -544,14 +562,8 @@ public class RoomService {
         return request.getTaskTitle() != null && task.getTitle().equalsIgnoreCase(request.getTaskTitle());
     }
 
-    private Note findAuthorizedNote(Room room, NoteRequest request, String errorMessage) {
-        Note note = findActiveNote(room, request);
-        validateOwnerOrAdmin(room, note.getCreatedBy(), request.getUsername(), errorMessage);
-        return note;
-    }
-
     private void syncTaskUpdate(Room room, Task task) {
-        if (hasGoogleCalendarEvent(room, task)) {
+        if (googleCalendarService != null && room.getGoogleCalendarId() != null && task.getGoogleEventId() != null) {
             try {
                 googleCalendarService.updateEventFromTask(task.getGoogleEventId(), task, room.getGoogleCalendarId());
             } catch (GoogleCalendarException e) {
@@ -560,26 +572,6 @@ public class RoomService {
         }
     }
 
-    private void deleteGoogleCalendarEventIfPresent(Room room, Task task) {
-        if (hasGoogleCalendarEvent(room, task)) {
-            try {
-                googleCalendarService.deleteEvent(task.getGoogleEventId(), room.getGoogleCalendarId());
-            } catch (GoogleCalendarException e) {
-                LOGGER.warn("Error al eliminar la tarea en Google Calendar: {}", e.getMessage());
-            }
-        }
-    }
-
-    private boolean hasGoogleCalendarEvent(Room room, Task task) {
-        return googleCalendarService != null
-                && room.getGoogleCalendarId() != null
-                && task.getGoogleEventId() != null;
-    }
-
-    private Room saveRoomWithActivity(Room room) {
-        room.markActivity();
-        return roomRepository.save(room);
-    }
 
     private void publishRoomUpdate(String roomId) {
         if (messagingTemplate != null && roomId != null) {
