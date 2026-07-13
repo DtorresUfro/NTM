@@ -1,6 +1,6 @@
-package com.Ntm.repository;
+package com.ntm.repository;
 
-import com.Ntm.entity.Notification;
+import com.ntm.entity.Notification;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
