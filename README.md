@@ -427,3 +427,11 @@ La versión actual incluye:
 - Actualizaciones mediante WebSocket.
 - Pruebas Java y JavaScript.
 - Levantamiento con Docker Compose, Nginx y MySQL.
+
+## URL de despliegue
+
+La aplicación se ejecuta localmente mediante Docker Compose y se publica temporalmente en Internet utilizando un servicio de túnel.
+
+**Interfaz web:**
+
+```https://8t77xwerwryi.shares.zrok.io/
