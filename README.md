@@ -434,7 +434,5 @@ La aplicación se ejecuta localmente mediante Docker Compose y se publica tempor
 
 **Interfaz web:**
 
-```https://8t77xwerwryi.shares.zrok.io/
-```
-
-
+```text
+https://8t77xwerwryi.shares.zrok.io/
